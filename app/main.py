@@ -660,7 +660,7 @@ async def api_config():
 
 
 FREE_TRIES = 3          # pruebas gratis por diseño y persona (IP) cada 24 h
-FREE_TRIES_DAY = 8      # tope total por IP y día, para cortar abusos
+FREE_TRIES_DAY = 3      # tope total por IP y día: 3 pruebas gratis
 _TRIES: dict[str, list[tuple[float, str]]] = {}
 
 
@@ -676,7 +676,7 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
     if sum(1 for h in hist if h[1] == scene) >= FREE_TRIES:
         raise HTTPException(429, "Has usado las 3 pruebas gratuitas de este diseño. Si quieres otra, escríbenos a hola@caricaturea.com.")
     if len(hist) >= FREE_TRIES_DAY:
-        raise HTTPException(429, "Has llegado al máximo de pruebas gratuitas de hoy. Escríbenos a hola@caricaturea.com y te ayudamos.")
+        raise HTTPException(429, "Has usado tus 3 pruebas gratuitas. Elige una de tus opciones o escríbenos a hola@caricaturea.com y te ayudamos.")
     hist.append((now, scene)); _TRIES[ip] = hist
     prod = await catalog.get_product(scene)
     if prod:
