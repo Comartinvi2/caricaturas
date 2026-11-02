@@ -63,6 +63,11 @@ window.__IDS = {ga4: "{{GA4_ID}}", gads: "{{GADS_ID}}", gads_label: "{{GADS_LABE
 
       <div id="preview-box" hidden>
         <img id="preview" alt="Tu caricatura">
+        <div class="variants" id="variants" hidden>
+          <h3 class="var-title">Tus visualizaciones (<span id="var-n">0</span>)</h3>
+          <p class="hint">¿Cuál eliges? Las guardamos 48 horas; si no pides ninguna, se borran.</p>
+          <div class="var-grid" id="var-grid"></div>
+        </div>
         <p class="hint">La marca de agua desaparece al pagar. ¿No te convence? Genera otra (te quedan <b id="left">2</b>).</p>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
         <button class="btn btn-ghost" id="retry">Probar con otra foto</button>
@@ -88,6 +93,19 @@ const $ = s => document.querySelector(s);
 const eur = c => (c/100).toFixed(2).replace('.', ',') + ' €';
 let D = null, type = 'canvas', product = null, jobId = null, tries = 0;
 const TKEY = 'tries:' + location.pathname; try { tries = +(localStorage.getItem(TKEY) || 0); } catch(e) {}
+// todas las pruebas se guardan como opciones durante 48 h (en el servidor se borran a los 2 días si no se pagan)
+const VKEY = 'variants:' + location.pathname, TTL = 48 * 3600 * 1000;
+let variants = []; try { variants = JSON.parse(localStorage.getItem(VKEY) || '[]').filter(v => Date.now() - v.t < TTL); } catch(e) {}
+function saveVariants(){ try { localStorage.setItem(VKEY, JSON.stringify(variants)); } catch(e) {} }
+function selectVariant(id){ jobId = id; const v = variants.find(x => x.id === id); if (!v) return;
+  $('#preview').src = v.url; $('#main-img').src = v.url;
+  document.querySelectorAll('#var-grid .var').forEach(el => el.classList.toggle('on', el.dataset.id === id)); }
+function renderVariants(){
+  $('#variants').hidden = variants.length < 2; $('#var-n').textContent = variants.length;
+  $('#var-grid').innerHTML = variants.map((v, i) => `<label class="var ${v.id === jobId ? 'on' : ''}" data-id="${v.id}"><img src="${v.url}" alt="Opción ${i+1}" loading="lazy">
+    <span><input type="radio" name="variant" ${v.id === jobId ? 'checked' : ''}> Elijo la opción ${i+1}</span></label>`).join('');
+  document.querySelectorAll('#var-grid .var').forEach(el => el.onclick = () => selectVariant(el.dataset.id));
+}
 const TYPE_LABEL = {digital: 'Solo archivo (sin impresión)', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
 
 (function(){ const d = new Date(); let add = 6; while(add>0){ d.setDate(d.getDate()+1); if(d.getDay()!==0 && d.getDay()!==6) add--; }
@@ -125,12 +143,15 @@ form.addEventListener('submit', async e => {
   try {
     const r = await fetch('/api/generate', { method:'POST', body: new FormData(form) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al generar');
-    tries++; try { localStorage.setItem(TKEY, tries); } catch(e) {} jobId = data.job_id; if(window.track) track('generate',{item:SCENE_NAME}); $('#left').textContent = 3 - tries;
+    tries++; try { localStorage.setItem(TKEY, tries); } catch(e) {} jobId = data.job_id;
+    variants.push({id: data.job_id, url: data.preview_url, t: Date.now()}); saveVariants(); renderVariants(); if(window.track) track('generate',{item:SCENE_NAME}); $('#left').textContent = 3 - tries;
     $('#preview').src = data.preview_url + '?t=' + Date.now(); $('#preview-box').hidden = false; $('#main-img').src = $('#preview').src;
     $('#preview-box').scrollIntoView({behavior:'smooth', block:'center'});
   } catch(err) { showError(err.message); form.hidden = false; }
   finally { clearInterval(t); loading.hidden = true; }
 });
+if (variants.length) { jobId = variants[variants.length - 1].id; $('#preview-box').hidden = false; renderVariants(); selectVariant(jobId);
+  $('#left').textContent = Math.max(0, 3 - tries); }
 $('#retry').addEventListener('click', () => { $('#preview-box').hidden = true; form.hidden = false; photo.value=''; thumb.hidden = true; drop.classList.remove('has'); });
 $('#pay').addEventListener('click', async () => {
   $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
