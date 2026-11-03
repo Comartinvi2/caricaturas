@@ -40,7 +40,7 @@ def stripe_client():
     return stripe
 
 
-def create_checkout(job_id: str, product: str) -> str:
+def create_checkout(job_id: str, product: str, clicks: dict | None = None) -> str:
     """Devuelve la URL de pago. En demo (sin Stripe) devuelve la página de éxito directamente."""
     p = PRODUCTS[product]
     storage.update_meta(job_id, product=product, status="checkout")
@@ -61,7 +61,7 @@ def create_checkout(job_id: str, product: str) -> str:
         }],
         success_url=f"{config.BASE_URL}/gracias?job={job_id}&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{config.BASE_URL}/?job={job_id}",
-        metadata={"job_id": job_id, "product": product},
+        metadata={"job_id": job_id, "product": product, **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
         client_reference_id=job_id,
         locale="es",
     )

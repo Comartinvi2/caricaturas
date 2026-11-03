@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import catalog, config, fulfilment, imaging, scenes, storage
+from . import adengine, catalog, config, fulfilment, imaging, scenes, storage
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
@@ -737,7 +737,7 @@ async def api_checkout(request: Request):
     if not meta or not storage.ensure_file(job_id, "result.png").exists():
         raise HTTPException(404, "La caricatura ha caducado. Vuelve a subir la foto.")
     try:
-        url = fulfilment.create_checkout(job_id, product)
+        url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies))
     except Exception as e:  # noqa: BLE001
         log.exception("checkout falló")
         raise HTTPException(502, f"No se ha podido iniciar el pago: {str(e)[:120]}")
@@ -766,6 +766,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
             fulfilment.mark_paid(job_id, session)
             await fulfilment.fulfil(job_id)
             await fulfilment.notify_paid(job_id)
+            asyncio.create_task(adengine.report_sale(session))  # AdEngine ignora los avisos repetidos del mismo pedido
     return {"ok": True}
 
 
