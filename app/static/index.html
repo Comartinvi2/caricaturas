@@ -10,14 +10,40 @@
 <script>
 window.__IDS = {ga4: "{{GA4_ID}}", gads: "{{GADS_ID}}", gads_label: "{{GADS_LABEL}}", meta: "{{META_PIXEL_ID}}", clarity: "{{CLARITY_ID}}", pinterest: "{{PINTEREST_TAG_ID}}"};
 (function(){ const I = window.__IDS;
+  // Analítica y publicidad solo con consentimiento: todo se carga dentro de cargar().
+  let ok = null; try { ok = localStorage.getItem('cookies_ok'); } catch (e) {}
+  function cargar() {
+  try { const g = new URLSearchParams(location.search).get('gclid'); if (g) document.cookie = 'ae_gclid=' + encodeURIComponent(g) + ';max-age=7776000;path=/;SameSite=Lax'; } catch(e) {}
+
   if (I.ga4 || I.gads) { const s=document.createElement('script'); s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+(I.ga4||I.gads); document.head.appendChild(s);
     window.dataLayer=window.dataLayer||[]; window.gtag=function(){dataLayer.push(arguments)}; gtag('js', new Date()); if(I.ga4) gtag('config', I.ga4); if(I.gads) gtag('config', I.gads); }
   if (I.meta) { !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js'); fbq('init', I.meta); fbq('track', 'PageView'); }
   if (I.clarity) { (function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", I.clarity); }
   if (I.pinterest) { !function(e){if(!window.pintrk){window.pintrk=function(){window.pintrk.queue.push(Array.prototype.slice.call(arguments))};var n=window.pintrk;n.queue=[],n.version="3.0";var t=document.createElement("script");t.async=!0,t.src=e;var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r)}}("https://s.pinimg.com/ct/core.js"); pintrk('load', I.pinterest); pintrk('page'); }
+  }
+  window.__cargarCookies = cargar; if (ok === 'si') cargar();
   window.track = function(ev, data){ data = data||{}; try{ if(window.gtag){ gtag('event', ev, data); if(ev==='purchase' && I.gads && I.gads_label) gtag('event','conversion',{send_to: I.gads+'/'+I.gads_label, value: data.value, currency: 'EUR', transaction_id: data.transaction_id}); } if(window.fbq){ const map={view_item:'ViewContent', generate:'Lead', begin_checkout:'InitiateCheckout', purchase:'Purchase'}; fbq('track', map[ev]||ev, {value:data.value, currency:'EUR', content_name:data.item}, data.transaction_id ? {eventID: String(data.transaction_id)} : undefined); } if(window.pintrk && ev==='purchase') pintrk('track','checkout',{value:data.value,currency:'EUR'}); }catch(e){} };
-  try { const g = new URLSearchParams(location.search).get('gclid'); if (g) document.cookie = 'ae_gclid=' + encodeURIComponent(g) + ';max-age=7776000;path=/;SameSite=Lax'; } catch(e) {}
 })();
+
+// Banner de cookies: nada de lo anterior se carga hasta que se acepta (LSSI y RGPD). La elección se guarda en este navegador.
+document.addEventListener('DOMContentLoaded', function () {
+  let ok = null; try { ok = localStorage.getItem('cookies_ok'); } catch (e) {}
+  if (ok) return;
+  const b = document.createElement('div');
+  b.setAttribute('role', 'dialog'); b.setAttribute('aria-label', 'Cookies');
+  b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;max-width:720px;margin:0 auto;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.15);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font:15px/1.4 system-ui,sans-serif';
+  b.innerHTML = '<span style="flex:1 1 260px">Usamos cookies de analítica y publicidad (Google y Meta) solo si aceptas. <a href="/static/legal.html#cookies" style="color:inherit">Más información</a></span>' +
+    '<span style="display:flex;gap:8px"><button data-r="no" style="min-width:100px;padding:9px 14px;border-radius:999px;border:1px solid #222;background:#fff;color:#222;cursor:pointer">Rechazar</button>' +
+    '<button data-r="si" style="min-width:100px;padding:9px 14px;border-radius:999px;border:1px solid #222;background:#222;color:#fff;cursor:pointer">Aceptar</button></span>';
+  b.addEventListener('click', function (e) {
+    const r = e.target.getAttribute && e.target.getAttribute('data-r'); if (!r) return;
+    try { localStorage.setItem('cookies_ok', r); } catch (x) {}
+    b.remove(); if (r === 'si' && window.__cargarCookies) window.__cargarCookies();
+  });
+  document.body.appendChild(b);
+});
+// Para el enlace «Cookies» de la privacidad: borra la elección y vuelve a preguntar.
+window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'); } catch (e) {} location.reload(); };
 </script>
 
 {{HEAD_EXTRA}}
