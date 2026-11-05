@@ -147,7 +147,7 @@ def _page(name: str, **extra: str) -> HTMLResponse:
         "WHATSAPP": config.WHATSAPP,
         "CATEGORY": "",
         "SCENE_ID": "", "SCENE_NAME": "", "SCENE_DESC": "", "SCENE_HTML": "",
-        "GA4_ID": config.env("GA4_ID", "G-HVSW8QZPG0"), "GADS_ID": config.env("GADS_ID", "AW-18552115823"), "GADS_LABEL": config.env("GADS_LABEL"), "META_PIXEL_ID": config.env("META_PIXEL_ID", "1440605421055263"), "CLARITY_ID": config.env("CLARITY_ID"), "PINTEREST_TAG_ID": config.env("PINTEREST_TAG_ID"),
+        "GA4_ID": config.env("GA4_ID", "G-HVSW8QZPG0"), "GADS_ID": config.env("GADS_ID", "AW-18552115823"), "GADS_LABEL": config.env("GADS_LABEL"), "META_PIXEL_ID": config.env("META_PIXEL_ID", "1440605421055263"), "CLARITY_ID": config.env("CLARITY_ID", "z8zva94ykq"), "PINTEREST_TAG_ID": config.env("PINTEREST_TAG_ID"),
         "PAGE_TITLE": f"{config.BRAND_NAME} · Caricatura personalizada desde una foto, en lienzo",
         "H1": "Caricatura personalizada a partir de una foto",
         "INTRO": "Tu idea. Tu foto. Un regalo personal. Elige la escena, sube la foto y mira tu caricatura antes de pagar.",
