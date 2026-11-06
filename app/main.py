@@ -47,8 +47,13 @@ _sem = asyncio.Semaphore(3)  # generaciones simultáneas
 async def _startup():
     storage.JOBS.mkdir(parents=True, exist_ok=True)
     n = storage.cleanup()
+    asyncio.create_task(catalog.ensure_thumbs())
     log.info("arranque: demo=%s pagos=%s impresion=%s, %d trabajos caducados borrados",
              config.DEMO_MODE, config.PAYMENTS_ENABLED, config.PRINT_ENABLED, n)
+
+
+def _thumb(url: str) -> str:
+    return re.sub(r"\.jpg$", "-t.webp", url or "") if "/storage/v1/object/public/caricaturas/" in (url or "") else url
 
 
 def _eur(cents: int) -> str:
@@ -109,7 +114,7 @@ def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[st
             continue
         cards = "".join(
             f'<a class="card" href="/p/{p["slug"]}"><div class="card-img"><span class="badge">-{config.DISCOUNT_PCT}%</span>'
-            + (f'<img src="{e(p["image_url"])}" alt="{e(p["title"])}" loading="lazy">' if p.get("image_url") else f'<span class="card-title">{e(p["title"])}</span>')
+            + (f'<img src="{e(_thumb(p["image_url"]))}" alt="{e(p["title"])}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'{e(p["image_url"])}\'">' if p.get("image_url") else f'<span class="card-title">{e(p["title"])}</span>')
             + f'</div><h3>{e(p["title"])}</h3><p>{e(p.get("short_desc"))}</p><p class="card-price"><s>{_eur(before)}</s> <b>desde {_eur(base)}</b></p></a>'
             for p in its[:MAX])
         more = f'<p class="more"><a class="btn btn-ghost" href="/coleccion/{GROUP_COL.get(g, "familia")}">Ver los {len(its)} diseños →</a></p>' if len(its) > MAX else ""
@@ -221,7 +226,7 @@ async def product_page(slug: str):
     returns = {"@type": "MerchantReturnPolicy", "applicableCountry": "ES", "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
                "merchantReturnLink": f"{config.BASE_URL}/static/legal.html"}
     prod = {"@context": "https://schema.org", "@type": "Product", "@id": f"{url}#product", "name": s["title"], "description": plain or s.get("short_desc") or "",
-            "image": (s.get("images") or [s.get("image_url")])[:6], "brand": {"@type": "Brand", "name": config.BRAND_NAME}, "sku": s["slug"], "url": url,
+            "image": (s.get("images") or [s.get("image_url")])[:3], "brand": {"@type": "Brand", "name": config.BRAND_NAME}, "sku": s["slug"], "url": url,
             "category": "Hogar y jardín > Decoración > Arte > Cuadros", "inLanguage": "es-ES",
             "offers": {"@type": "AggregateOffer", "priceCurrency": "EUR", "lowPrice": config.PRICE_DIGITAL_CENTS / 100,
                        "highPrice": max(v["cents"] for v in fulfilment.PRODUCTS.values()) / 100, "offerCount": len(fulfilment.product_list()),
@@ -585,7 +590,7 @@ async def admin_catalog_status(token: str = ""):
         return {"supabase": False}
     total = await catalog._get("car_products", {"select": "slug", "limit": "5000"})
     with_img = await catalog._get("car_products", {"select": "slug", "image_url": "not.is.null", "limit": "5000"})
-    return {"supabase": True, "products": len(total), "with_image": len(with_img), "source_total": 436, "bg_running": _bg["running"], "bg_errors": _bg["errors"][-5:], "rooms_running": _rooms_bg["running"], "rooms_done": _rooms_bg["done"], "rooms_errors": _rooms_bg["errors"][-3:], "main_running": _main_bg["running"], "main_done": _main_bg["done"], "main_errors": _main_bg["errors"][-3:]}
+    return {"supabase": True, "products": len(total), "with_image": len(with_img), "source_total": 436, "bg_running": _bg["running"], "bg_errors": _bg["errors"][-5:], "rooms_running": _rooms_bg["running"], "rooms_done": _rooms_bg["done"], "rooms_errors": _rooms_bg["errors"][-3:], "main_running": _main_bg["running"], "main_done": _main_bg["done"], "main_errors": _main_bg["errors"][-3:], "thumbs": {k: (v[-3:] if k == "errors" else v) for k, v in catalog._thumbs_bg.items()}}
 
 
 @app.get("/admin/catalogo", response_class=HTMLResponse)

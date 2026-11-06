@@ -77,13 +77,93 @@ async def _patch(table: str, key: str, value: str, data: dict):
         raise RuntimeError(f"supabase {r.status_code}: {r.text[:300]}")
 
 
-async def upload_image(path: str, data: bytes, content_type: str = "image/jpeg") -> str:
-    h = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": content_type, "x-upsert": "true"}
+IMG_CACHE = "public, max-age=2592000"  # 30 días: el navegador no vuelve a pedirla en cada visita
+
+
+def thumb_path(path: str) -> str:
+    """slug/main.jpg -> slug/main-t.webp (miniatura para listados)."""
+    return re.sub(r"\.jpg$", "-t.webp", path)
+
+
+def make_thumb(data: bytes, width: int = 480) -> bytes:
+    from PIL import Image as _I
+    import io as _io
+    im = _I.open(_io.BytesIO(data)).convert("RGB")
+    if im.width > width:
+        im = im.resize((width, round(im.height * width / im.width)), _I.LANCZOS)
+    buf = _io.BytesIO(); im.save(buf, format="WEBP", quality=78, method=4)
+    return buf.getvalue()
+
+
+def _is_product_jpg(path: str) -> bool:
+    return path.endswith(".jpg") and "/" in path and not path.startswith("_")
+
+
+async def _put(path: str, data: bytes, content_type: str):
+    h = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": content_type,
+         "x-upsert": "true", "cache-control": IMG_CACHE}
     async with httpx.AsyncClient(timeout=120) as c:
         r = await c.post(f"{SUPABASE_URL}/storage/v1/object/caricaturas/{path}", headers=h, content=data)
     if r.status_code >= 300:
         raise RuntimeError(f"storage {r.status_code}: {r.text[:300]}")
+
+
+async def upload_image(path: str, data: bytes, content_type: str = "image/jpeg") -> str:
+    await _put(path, data, content_type)
+    if _is_product_jpg(path):  # cada imagen de producto lleva su miniatura
+        try:
+            await _put(thumb_path(path), await asyncio.to_thread(make_thumb, data), "image/webp")
+        except Exception as e:  # noqa: BLE001
+            log.warning("miniatura %s: %s", path, e)
     return f"{SUPABASE_URL}/storage/v1/object/public/caricaturas/{path}"
+
+
+_thumbs_bg = {"running": False, "done": 0, "skipped": 0, "errors": []}
+
+
+async def ensure_thumbs(workers: int = 3):
+    """Crea las miniaturas que falten (una vez; luego upload_image las genera solas)."""
+    if not ENABLED or _thumbs_bg["running"]:
+        return
+    _thumbs_bg.update(running=True, done=0, skipped=0, errors=[])
+    try:
+        prods = await _get("car_products", {"select": "slug,image_url,images", "image_url": "not.is.null", "limit": "5000"})
+        pre = f"{SUPABASE_URL}/storage/v1/object/public/caricaturas/"
+        queue = []
+        h = _headers()
+        async with httpx.AsyncClient(timeout=30) as c:
+            for p in prods:
+                r = await c.post(f"{SUPABASE_URL}/storage/v1/object/list/caricaturas", headers=h, json={"prefix": p["slug"] + "/", "limit": 100})
+                have = {o["name"] for o in r.json()} if r.status_code == 200 else set()
+                urls = [p["image_url"], *(p.get("images") or []), f"{pre}{p['slug']}/art.jpg"]
+                for u in dict.fromkeys(u for u in urls if u and u.startswith(pre) and u.endswith(".jpg")):
+                    path = u[len(pre):]
+                    name = path.split("/", 1)[1]
+                    if name not in have:
+                        continue  # la imagen no existe
+                    if thumb_path(name) in have:
+                        _thumbs_bg["skipped"] += 1
+                    else:
+                        queue.append(path)
+
+        async def worker():
+            async with httpx.AsyncClient(timeout=60) as c:
+                while queue:
+                    path = queue.pop(0)
+                    try:
+                        r = await c.get(pre + path); r.raise_for_status()
+                        await _put(thumb_path(path), await asyncio.to_thread(make_thumb, r.content), "image/webp")
+                        _thumbs_bg["done"] += 1
+                    except Exception as e:  # noqa: BLE001
+                        _thumbs_bg["errors"].append({"path": path, "error": str(e)[:200]})
+
+        log.info("miniaturas: %d por crear, %d ya estaban", len(queue), _thumbs_bg["skipped"])
+        await asyncio.gather(*[worker() for _ in range(workers)])
+        log.info("miniaturas: %d creadas, %d errores", _thumbs_bg["done"], len(_thumbs_bg["errors"]))
+    except Exception as e:  # noqa: BLE001
+        log.warning("miniaturas: %s", e)
+    finally:
+        _thumbs_bg["running"] = False
 
 
 # --- lectura ----------------------------------------------------------------

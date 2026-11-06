@@ -189,16 +189,17 @@ async function load(){
   q.addEventListener('input', () => render(curCat));
   heroStrip(); render(CATEGORY); $('#count').textContent = D.total ? `· ${D.total} diseños` : '';
 }
+const T = u => (u||'').includes('/object/public/caricaturas/') ? u.replace(/\.jpg$/,'-t.webp') : u; // miniatura
 function heroStrip(){
   // como la referencia: franja de caricaturas de distintos grupos encima del título
   const withImg = D.scenes.filter(s => s.image);
   const pick = []; const groups = ['ella','el','pareja','ella','el','familia','ella'];
   groups.forEach((g,i) => { const c = withImg.filter(s => s.group === g && !pick.includes(s)); if (c.length) pick.push(c[(i*7) % c.length]); });
-  $('#heroStrip').innerHTML = pick.slice(0,6).map(s => `<a href="/p/${s.id}"><img src="${s.image.replace('/main.jpg','/art.jpg')}" alt="" onerror="this.src='${s.image}'"></a>`).join('');
+  $('#heroStrip').innerHTML = pick.slice(0,6).map(s => `<a href="/p/${s.id}"><img src="${T(s.image.replace('/main.jpg','/art.jpg'))}" alt="" onerror="this.onerror=null;this.src='${s.image}'"></a>`).join('');
 }
 function card(s){
   return `<a class="card" href="/p/${s.id}">
-    <div class="card-img"><span class="badge">-${D.discount}%</span>${s.image ? `<img src="${s.image}" alt="${s.name.replace(/"/g,'')}" loading="lazy">` : `<span class="card-title">${s.name}</span>`}</div>
+    <div class="card-img"><span class="badge">-${D.discount}%</span>${s.image ? `<img src="${T(s.image)}" alt="${s.name.replace(/"/g,'')}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${s.image}'">` : `<span class="card-title">${s.name}</span>`}</div>
     <h3>${s.name}</h3><p>${s.desc}</p>
     <p class="card-price"><s>{{PRICE_BEFORE}}</s> <b>desde {{PRICE_FROM}}</b></p></a>`;
 }
