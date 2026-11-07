@@ -237,13 +237,15 @@ async def product_page(slug: str):
     crumbs = [(col["title"], f"/coleccion/{col['slug']}")] if col else []
     desc = f"{s.get('short_desc') or ''} Caricatura personalizada a partir de tu foto, en lienzo, póster o archivo. Ves el diseño antes de pagar. Envío gratis."
     head = _seo_head(f"/p/{s['slug']}", f"{s['title']} · {config.BRAND_NAME}", desc, s.get("image_url") or "", "product") + _ld(prod) + _crumbs(*crumbs, (s["title"], f"/p/{s['slug']}"))
-    return _page("producto.html", HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
+    _img = s.get("image_url") or f"/api/example/{s['slug']}.jpg"
+    _img_t = _img[:-4] + "-t.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
+    return _page("producto.html", MAIN_IMG=_img, MAIN_IMG_T=_img_t, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
 
 
 @app.get("/api/scenes")
-async def api_scenes(category: str = "", group: str = ""):
+async def api_scenes(category: str = "", group: str = "", only: str = ""):
     prods, cols = await catalog.get_catalog()
-    items = [p for p in prods if (not category or category in (p.get("collections") or []) or category == "todas" or (category == "bestsellers" and p.get("bestseller"))) and (not group or p.get("group") == group)]
+    items = [p for p in prods if (not category or category in (p.get("collections") or []) or category == "todas" or (category == "bestsellers" and p.get("bestseller"))) and (not group or p.get("group") == group) and (not only or p["slug"] == only)]
     return {
         "groups": [{"slug": k, "name": v} for k, v in scenes.GROUPS],
         "categories": [{"slug": c["slug"], "name": c["title"], "title": c.get("h1") or c["title"], "intro": c.get("intro") or ""} for c in cols if c["slug"] != "todas"],
