@@ -239,7 +239,8 @@ async def product_page(slug: str):
     head = _seo_head(f"/p/{s['slug']}", f"{s['title']} · {config.BRAND_NAME}", desc, s.get("image_url") or "", "product") + _ld(prod) + _crumbs(*crumbs, (s["title"], f"/p/{s['slug']}"))
     _img = s.get("image_url") or f"/api/example/{s['slug']}.jpg"
     _img_t = _img[:-4] + "-t.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
-    return _page("producto.html", MAIN_IMG=_img, MAIN_IMG_T=_img_t, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
+    _img_m = _img[:-4] + "-m.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
+    return _page("producto.html", MAIN_IMG=_img, MAIN_IMG_T=_img_t, MAIN_IMG_M=_img_m, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
 
 
 @app.get("/api/scenes")

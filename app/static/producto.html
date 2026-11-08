@@ -57,7 +57,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
 <div class="product-grid">
   <div class="product-media">
     <div class="delivery-banner">Haz tu pedido hoy y recíbelo antes del <b id="delivery-date"></b>.<br><small>* si apruebas el diseño hoy</small></div>
-    <div class="product-img"><img id="main-img" src="{{MAIN_IMG}}" srcset="{{MAIN_IMG_T}} 480w, {{MAIN_IMG}} 1160w" sizes="(max-width: 700px) 92vw, 512px" fetchpriority="high" alt="{{SCENE_NAME}}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',textContent:'{{SCENE_NAME}}'}))"></div>
+    <div class="product-img"><img id="main-img" src="{{MAIN_IMG}}" srcset="{{MAIN_IMG_T}} 480w, {{MAIN_IMG_M}} 800w, {{MAIN_IMG}} 1160w" sizes="(max-width: 700px) 92vw, 512px" fetchpriority="high" alt="{{SCENE_NAME}}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',textContent:'{{SCENE_NAME}}'}))"></div>
     <div class="thumbs" id="thumbs"></div>
     <div class="ship-info"><div><b>Envío gratuito por mensajería</b><br>Entrega en 24-48 h tras la aprobación del diseño.</div><div><b>Diseño para tu aprobación</b><br>Lo ves antes de pagar; nada se imprime sin tu OK.</div></div>
   </div>
