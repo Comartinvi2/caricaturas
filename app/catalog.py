@@ -85,6 +85,11 @@ def thumb_path(path: str) -> str:
     return re.sub(r"\.jpg$", "-t.webp", path)
 
 
+def medium_path(path: str) -> str:
+    """slug/main.jpg -> slug/main-m.webp (imagen principal en móvil)."""
+    return re.sub(r"\.jpg$", "-m.webp", path)
+
+
 def make_thumb(data: bytes, width: int = 480) -> bytes:
     from PIL import Image as _I
     import io as _io
@@ -113,6 +118,8 @@ async def upload_image(path: str, data: bytes, content_type: str = "image/jpeg")
     if _is_product_jpg(path):  # cada imagen de producto lleva su miniatura
         try:
             await _put(thumb_path(path), await asyncio.to_thread(make_thumb, data), "image/webp")
+            if path.endswith("/main.jpg"):  # la principal lleva además versión media para móvil
+                await _put(medium_path(path), await asyncio.to_thread(make_thumb, data, 800), "image/webp")
         except Exception as e:  # noqa: BLE001
             log.warning("miniatura %s: %s", path, e)
     return f"{SUPABASE_URL}/storage/v1/object/public/caricaturas/{path}"
@@ -141,18 +148,22 @@ async def ensure_thumbs(workers: int = 3):
                     name = path.split("/", 1)[1]
                     if name not in have:
                         continue  # la imagen no existe
-                    if thumb_path(name) in have:
-                        _thumbs_bg["skipped"] += 1
-                    else:
-                        queue.append(path)
+                    variants = [(thumb_path(path), 480)]
+                    if u == p["image_url"]:
+                        variants.append((medium_path(path), 800))
+                    for target, width in variants:
+                        if target.split("/", 1)[1] in have:
+                            _thumbs_bg["skipped"] += 1
+                        else:
+                            queue.append((path, target, width))
 
         async def worker():
             async with httpx.AsyncClient(timeout=60) as c:
                 while queue:
-                    path = queue.pop(0)
+                    path, target, width = queue.pop(0)
                     try:
                         r = await c.get(pre + path); r.raise_for_status()
-                        await _put(thumb_path(path), await asyncio.to_thread(make_thumb, r.content), "image/webp")
+                        await _put(target, await asyncio.to_thread(make_thumb, r.content, width), "image/webp")
                         _thumbs_bg["done"] += 1
                     except Exception as e:  # noqa: BLE001
                         _thumbs_bg["errors"].append({"path": path, "error": str(e)[:200]})
