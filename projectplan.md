@@ -15,25 +15,30 @@ Pendiente: en móviles DPR 3 el srcset sigue eligiendo `main.jpg` (~230 KB).
 
 ## Fase A — main-m.webp (dos despliegues, para no enlazar imágenes que aún no existen)
 
-### Despliegue 1: generar las imágenes
+### Despliegue 1: generar las imágenes — HECHO (commit 0f4c6ec, 8 nov)
 
-- [ ] `catalog.py`: función `medium_path()` (`main.jpg` → `main-m.webp`) y versión
-      de 800 px / calidad ~75 reutilizando `make_thumb(data, width=800)`.
-      → verificar: con un `main.jpg` real descargado, el resultado pesa < 80 KB.
-- [ ] `catalog.py`: `upload_image()` genera también `-m.webp` al subir un producto.
-- [ ] `catalog.py`: `ensure_thumbs()` encola además los `-m.webp` que falten
-      (solo para `image_url` de cada producto).
-- [ ] Desplegar y esperar al backfill.
-      → verificar: log de Render «miniaturas: N creadas, 0 errores» y que
-      `https://.../caricaturas/<slug>/main-m.webp` responde 200 en 2-3 slugs.
+- [x] `catalog.py`: `medium_path()` y `make_thumb(data, 800)` con la calidad 78
+      de siempre: 58-72 KB en pruebas con imágenes reales.
+- [x] `catalog.py`: `upload_image()` genera también `-m.webp` (solo `main.jpg`).
+- [x] `catalog.py`: `ensure_thumbs()` encola además los `-m.webp` que falten.
+- [x] Backfill verificado contra Supabase: 436/436 (dos fallaron en la primera
+      pasada por errores transitorios y se crearon solas en el arranque siguiente).
+      Pesos reales: mediana 73 KB, máx 100 KB (117 quedan entre 80 y 100 KB;
+      se aceptó: frente a los ~230 KB del jpg el ahorro grande ya está hecho).
 
-### Despliegue 2: usarlas en la ficha
+### Despliegue 2: usarlas en la ficha — HECHO (commits 664e10b y cf310a5, 8 nov)
 
-- [ ] `main.py`: pasar `MAIN_IMG_M` al template (mismo criterio que `MAIN_IMG_T`).
-- [ ] `producto.html`: srcset `-t.webp 480w, -m.webp 800w, main.jpg 1160w`.
-      El `src` sigue siendo `main.jpg` (fallback intacto).
-      → verificar: en producción, con DevTools emulando DPR 3 / 390 px,
-      la red descarga `main-m.webp` y no `main.jpg`.
+- [x] `main.py`: `MAIN_IMG_M` al template (mismo criterio que `MAIN_IMG_T`).
+- [x] `producto.html`: srcset `-t.webp 480w, -m.webp 800w, main.jpg 1160w`,
+      `src` sigue siendo `main.jpg`.
+- [x] Hallazgo: añadir el 800w NO bastaba para DPR 3 (el navegador calcula
+      92vw×3 ≈ 1035 px y elige el candidato superior, main.jpg). Arreglo:
+      en `sizes`, para pantallas de ≥2,5dppx se declara 266px, con lo que
+      800 px ya cubre (densidad real 2,3x). Navegadores antiguos ignoran esa
+      condición y se quedan como estaban.
+- [x] Verificado en producción con emulación móvil (375 px, DPR 2):
+      `currentSrc` es `main-m.webp` y la ficha se ve bien. DPR 3 queda
+      garantizado por el cálculo del propio `sizes` (266×3 ≈ 800).
 
 ## Fase B — portada (valorar, decidir con Maria)
 
