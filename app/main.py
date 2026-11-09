@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, imaging, scenes, storage
+from . import adengine, catalog, config, fulfilment, funnel, imaging, scenes, storage
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
@@ -48,8 +48,14 @@ async def _startup():
     storage.JOBS.mkdir(parents=True, exist_ok=True)
     n = storage.cleanup()
     asyncio.create_task(catalog.ensure_thumbs())
+    asyncio.create_task(funnel.loop())
     log.info("arranque: demo=%s pagos=%s impresion=%s, %d trabajos caducados borrados",
              config.DEMO_MODE, config.PAYMENTS_ENABLED, config.PRINT_ENABLED, n)
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    await asyncio.to_thread(funnel.save)
 
 
 def _thumb(url: str) -> str:
@@ -223,10 +229,12 @@ async def category_page(category: str):
 
 
 @app.get("/p/{slug}", response_class=HTMLResponse)
-async def product_page(slug: str):
+async def product_page(request: Request, slug: str):
     s = await catalog.get_product(slug)
     if not s:
         raise HTTPException(404)
+    if not funnel.is_bot(request.headers.get("user-agent")):
+        funnel.hit("ficha")
     import html as _h
     url = f"{config.BASE_URL}/p/{s['slug']}"
     plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", s.get("description_html") or "")).strip()
@@ -698,6 +706,7 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
     if len(hist) >= FREE_TRIES_DAY:
         raise HTTPException(429, "Has usado tus 2 pruebas gratuitas. Elige una de tus opciones o escríbenos a hola@caricaturea.com y te ayudamos.")
     hist.append((now, scene)); _TRIES[ip] = hist
+    funnel.hit("generar")
     prod = await catalog.get_product(scene)
     if prod:
         scene_data = {"id": prod["slug"], "prompt": prod.get("scene_prompt") or prod.get("short_desc") or ""}
@@ -732,11 +741,13 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
         await asyncio.to_thread(storage.backup, job_id)
         variants.append({"job_id": job_id, "preview_url": f"/api/preview/{job_id}.jpg"})
     asyncio.get_running_loop().run_in_executor(None, storage.sb_cleanup)
+    funnel.hit("generada")
     # Email opcional: le mandamos sus visualizaciones por si cierra la página durante la espera.
     # Solo se usa para este envío; no se guarda.
     email = email.strip()[:200]
     if re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+", email):
         from . import mail
+        funnel.hit("email")
         title = (prod or {}).get("title") or "caricatura"
         link = f"{config.BASE_URL}/p/{scene_data['id']}?v=" + ",".join(v["job_id"] for v in variants)
         t = asyncio.create_task(mail.variants_ready(email, title, link, [config.BASE_URL + v["preview_url"] for v in variants]))
@@ -766,6 +777,7 @@ async def api_checkout(request: Request):
     meta = storage.read_meta(job_id)
     if not meta or not storage.ensure_file(job_id, "result.png").exists():
         raise HTTPException(404, "La caricatura ha caducado. Vuelve a subir la foto.")
+    funnel.hit("pedir")
     changes = bool(body.get("changes"))  # «Necesito cambios»: no se entrega ni imprime hasta aprobar
     storage.update_meta(job_id, changes=changes, wishes=" ".join(str(body.get("wishes") or "").split())[:500] if changes else "")
     try:
@@ -913,6 +925,33 @@ async def api_status(job_id: str):
     prod = fulfilment.PRODUCTS.get(meta.get("product") or "")
     out["amount"] = (prod["cents"] / 100) if prod else None
     return out
+
+
+@app.post("/api/e/{step}", status_code=204)
+async def api_event(request: Request, step: str):
+    """Aviso sin cookies desde la ficha (p. ej. «vista»: la persona ha visto su caricatura)."""
+    if step in funnel.CLIENT_STEPS and not funnel.is_bot(request.headers.get("user-agent")):
+        funnel.hit(step)
+    return Response(status_code=204)
+
+
+@app.get("/admin/embudo", response_class=HTMLResponse)
+async def admin_funnel(token: str = ""):
+    _admin(token)
+    from datetime import datetime, timedelta
+    data, S = funnel.counts(), funnel.STEPS
+    from zoneinfo import ZoneInfo
+    hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+    days = [(hoy - timedelta(days=i)).isoformat() for i in range(30)]
+    tot = {k: sum(data.get(d, {}).get(k, 0) for d in days) for k in S}
+    pct = [f"{round(100 * tot[k] / tot[funnel.BASE[k]])} %" if funnel.BASE.get(k) and tot[funnel.BASE[k]] else "" for k in S]
+    row = lambda cells, tag="td": "<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>"
+    body = "".join(row([d] + [data.get(d, {}).get(k, 0) for k in S]) for d in days if d in data)
+    return f"""<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Embudo</title>
+<style>body{{font:15px system-ui;margin:24px}}table{{border-collapse:collapse}}td,th{{border:1px solid #ddd;padding:6px 10px;text-align:right}}th{{background:#f4f1eb}}</style>
+<h1>Embudo (30 días, sin cookies)</h1>
+<p>Totales por día. «vista» = vio su caricatura en la ficha; «email» = dejó el email; la fila % compara cada paso con el suyo (generar→ficha, email y generada→generar, vista→generada, pedir→vista, venta→pedir).</p>
+<table>{row(["día"] + S, "th")}{row(["<b>total</b>"] + [f"<b>{tot[k]}</b>" for k in S])}{row(["% respecto a su paso"] + pct)}{body}</table>"""
 
 
 @app.get("/admin/cambios", response_class=HTMLResponse)

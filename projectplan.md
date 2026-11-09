@@ -175,3 +175,17 @@ queda el último, como extra.
 - ~10 nov: revisar en adengine si el % de clics de Meta que cargan sube del 57,8 %.
 - Decisión pendiente de Maria (no de código): adengine tiene 1.216 €/mes
   comprometidos frente a su tope de 500 €/mes.
+
+## Fase G — embudo propio sin cookies (aprobada por Maria, 9 nov)
+
+Por qué: Clarity solo ve a quien acepta cookies (pocas sesiones) y Maria quería
+cargar las cookies sin consentimiento para medir; eso es ilegal (LSSI 22.2,
+RGPD). Alternativa: contar en nuestro servidor cuántas visitas llegan a cada
+paso. Solo totales por día: ni IP, ni identificadores, ni nada en el móvil.
+
+- [x] `funnel.py`: contadores por día y paso en memoria, guardados cada minuto
+      en Supabase (no hace falta tabla nueva) y al apagar.
+- [x] Pasos: ficha (visita no-bot) → generar → generada → vista (la persona ve el resultado; aviso sin cookies desde la ficha) → email → pedir → venta.
+- [x] `/admin/embudo?token=…`: tabla de los últimos 30 días, totales y % de
+      cada paso respecto al anterior.
+- [ ] Probar en local y en producción (los pasos suben al navegar).

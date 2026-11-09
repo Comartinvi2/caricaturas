@@ -185,7 +185,7 @@ form.addEventListener('submit', async e => {
     const r = await fetch('/api/generate', { method:'POST', body: new FormData(form) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al generar');
     tries++; try { localStorage.setItem(TKEY, tries); } catch(e) {} jobId = data.job_id;
-    (data.variants || [data]).forEach(v => variants.push({id: v.job_id, url: v.preview_url, t: Date.now()})); saveVariants(); renderVariants(); selectVariant(jobId); if(window.track) track('generate',{item:SCENE_NAME}); $('#left').textContent = Math.max(0, 2 - tries);
+    (data.variants || [data]).forEach(v => variants.push({id: v.job_id, url: v.preview_url, t: Date.now()})); saveVariants(); renderVariants(); selectVariant(jobId); if(window.track) track('generate',{item:SCENE_NAME}); try { navigator.sendBeacon('/api/e/vista'); } catch(e) {} $('#left').textContent = Math.max(0, 2 - tries);
     $('#preview').src = data.preview_url + '?t=' + Date.now(); $('#preview-box').hidden = false; setMain($('#preview').src);
     $('#preview-box').scrollIntoView({behavior:'smooth', block:'center'});
   } catch(err) { showError(err.message); form.hidden = false; }

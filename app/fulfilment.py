@@ -3,7 +3,7 @@ import time
 
 import httpx
 
-from . import config, mail, storage
+from . import config, mail, storage, funnel
 
 P = config.PRICES_CENTS
 PRODUCTS = {
@@ -47,6 +47,7 @@ def create_checkout(job_id: str, product: str, clicks: dict | None = None) -> st
     storage.persist(job_id)
     if not config.PAYMENTS_ENABLED:
         storage.update_meta(job_id, paid=True, paid_at=time.time(), payment="demo", status="paid")
+        funnel.hit("venta")
         return f"{config.BASE_URL}/gracias?job={job_id}&demo=1"
     stripe = stripe_client()
     params = dict(
@@ -101,6 +102,7 @@ def mark_paid(job_id: str, session) -> None:
     meta = storage.read_meta(job_id) or {}
     if meta.get("paid"):
         return
+    funnel.hit("venta")
     details = session.get("customer_details") or {}
     ship = session.get("shipping_details") or (session.get("collected_information") or {}).get("shipping_details") or {}
     addr = ship.get("address") or {}
