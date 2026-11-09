@@ -161,6 +161,12 @@ TODOs:
        (los logs de Render de este servicio no están en la cuenta conectada).
 6. [ ] Medir junto con la Fase E: ¿bajan los abandonos durante la espera?
 
+## Precio del archivo: 2,99 € (decisión de Maria, 9 nov)
+
+Antes 25,90 €. Cambiado el mismo día que se publicaron las Fases E y F, así
+que al medir no se podrá separar el efecto de cada cambio. Lienzo y póster
+siguen desde 35,90 €.
+
 ## Fase D — seguimiento
 
 - ~10 nov: revisar en adengine si el % de clics de Meta que cargan sube del 57,8 %.
