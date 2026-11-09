@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const b = document.createElement('div');
   b.setAttribute('role', 'dialog'); b.setAttribute('aria-label', 'Cookies');
   b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;max-width:720px;margin:0 auto;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.15);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font:15px/1.4 system-ui,sans-serif';
-  b.innerHTML = '<span style="flex:1 1 260px">Usamos cookies de analítica y publicidad (Google y Meta) solo si aceptas. <a href="/static/legal.html#cookies" style="color:inherit">Más información</a></span>' +
+  b.innerHTML = '<span style="flex:1 1 260px">Usamos cookies de analítica y publicidad (Google y Meta) y del chat (Tawk.to) solo si aceptas. <a href="/static/legal.html#cookies" style="color:inherit">Más información</a></span>' +
     '<span style="display:flex;gap:8px"><button data-r="no" style="min-width:100px;padding:9px 14px;border-radius:999px;border:1px solid #222;background:#fff;color:#222;cursor:pointer">Rechazar</button>' +
     '<button data-r="si" style="min-width:100px;padding:9px 14px;border-radius:999px;border:1px solid #222;background:#222;color:#fff;cursor:pointer">Aceptar</button></span>';
   b.addEventListener('click', function (e) {
@@ -88,7 +88,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
 <section id="opiniones" class="reviews">
   <h2>Reseñas de clientes</h2>
   <div class="rating-box">
-    <div><span class="stars" id="rvStars">★★★★★</span> <b id="rvAvg">–</b><br><small id="rvCount">Todavía no hay reseñas</small></div>
+    <div><span class="stars" id="rvStars">★★★★★</span> <b id="rvAvg">–</b><br><small id="rvCount">Cargando reseñas…</small></div>
     <div class="bars" id="rvBars"></div>
     <button class="btn btn-primary" type="button" onclick="document.getElementById('rvForm').hidden=false">Escribe una reseña</button>
   </div>
@@ -241,5 +241,24 @@ async function sendReview(e){
 }
 if (DEMO) { const b = document.createElement('div'); b.className='demo-banner'; b.textContent='Modo demo: caricatura simulada y pago simulado.'; document.body.prepend(b); }
 </script>
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+// Chat de Tawk.to: pone cookies de terceros, así que solo se carga si se aceptan en el aviso (LSSI y RGPD).
+(function(){
+function tawk(){ if (window.Tawk_API) return;
+window.Tawk_API={}; window.Tawk_LoadStart=new Date();
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/6af1b0f8298fc83c4494e942/1k701miik';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+}
+var ok=null; try { ok=localStorage.getItem('cookies_ok'); } catch(e) {}
+if (ok==='si') tawk();
+var cargar=window.__cargarCookies; window.__cargarCookies=function(){ if (cargar) cargar(); tawk(); };
+})();
+</script>
+<!--End of Tawk.to Script-->
 </body>
 </html>
