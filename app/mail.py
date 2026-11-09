@@ -107,6 +107,15 @@ async def changes_received(o: dict):
                        "Si quieres añadir algo, responde a este correo."])
 
 
+async def variants_ready(to: str, title: str, link: str, previews: list[str]):
+    imgs = "".join(f'<img src="{html.escape(u, quote=True)}" alt="Opción {i}" width="250" style="width:48%;max-width:250px;margin:0 1% 8px 0;border:1px solid #eee">'
+                   for i, u in enumerate(previews, 1))
+    return await send(to, "Tus visualizaciones están listas",
+                      ["¡Hola!", f"Aquí tienes las visualizaciones de tu caricatura «{html.escape(title)}». Las guardamos 48 horas.",
+                       imgs, "Elige la que más te guste o marca «Necesito cambios» y te ayudamos a dejarla perfecta."],
+                      button=("Ver mis visualizaciones", link))
+
+
 async def order_shipped(o: dict, tracking_url: str | None, carrier: str | None):
     p = ["¡Tu caricatura ya ha salido de la imprenta y va de camino!" + (f" Lo lleva {html.escape(carrier)}." if carrier else ""),
          "Suele llegar en 2-5 días laborables."]

@@ -82,9 +82,12 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
         <label class="drop" id="drop"><input type="file" id="photo" name="photo" accept="image/*" required><div class="drop-inner"><strong>+ Subir foto</strong><span>De frente, con luz, cara grande. 1-4 personas o tu mascota.</span></div><img id="thumb" alt="" hidden></label>
         <label class="notes">Texto en el cuadro (opcional)<input type="text" name="dedication" id="dedication" maxlength="60" placeholder="Ej.: ¡Felices 50, Carlos!"></label>
         <label class="notes">Escribe aquí tus deseos más importantes para el diseño; los incluiremos en la visualización.<textarea name="notes" id="notes" maxlength="300" rows="3" placeholder="Por ejemplo: cambiar el color de la moto, que lleve gafas, la camiseta azul."></textarea></label>
+        <label class="notes">Tu email (opcional): te enviamos tus visualizaciones por si cierras la página<input type="email" name="email" id="email" maxlength="200" autocomplete="email" placeholder="tu@email.com"></label>
         <button class="btn btn-primary wide" type="submit" id="go">Generar visualización</button>
       </form>
-      <div id="loading" hidden><div class="spinner"></div><p id="loading-text">Dibujando tu caricatura…</p></div>
+      <div id="loading" hidden><div class="spinner"></div><p id="loading-text">Dibujando tus 2 visualizaciones…</p>
+        <div style="height:8px;background:#eee7dc;border-radius:4px;overflow:hidden;margin:12px auto;max-width:320px"><div id="bar" style="height:100%;width:0;background:var(--accent);transition:width 1s linear"></div></div>
+        <p class="hint">Tarda alrededor de 1 minuto. No cierres esta página.</p></div>
       <p class="error" id="error" hidden></p>
 
       <div id="preview-box" hidden>
@@ -130,6 +133,9 @@ const TKEY = 'tries:' + location.pathname; try { tries = +(localStorage.getItem(
 const VKEY = 'variants:' + location.pathname, TTL = 48 * 3600 * 1000;
 let variants = []; try { variants = JSON.parse(localStorage.getItem(VKEY) || '[]').filter(v => Date.now() - v.t < TTL); } catch(e) {}
 function saveVariants(){ try { localStorage.setItem(VKEY, JSON.stringify(variants)); } catch(e) {} }
+// enlace del email («Ver mis visualizaciones»): ?v=job1,job2 recupera las variantes en cualquier móvil
+(new URLSearchParams(location.search).get('v') || '').split(',').filter(id => /^[\w-]{6,64}$/.test(id) && !variants.some(v => v.id === id))
+  .forEach(id => variants.push({id, url: '/api/preview/' + id + '.jpg', t: Date.now()})); saveVariants();
 let needChanges = false;
 function selectVariant(id){ jobId = id; const v = variants.find(x => x.id === id); if (!v) return;
   $('#preview').src = v.url; setMain(v.url);
@@ -168,13 +174,13 @@ load(); if(window.track) track('view_item',{item:SCENE_NAME});
 const photo = $('#photo'), thumb = $('#thumb'), drop = $('#drop'), form = $('#form'), loading = $('#loading'), errorBox = $('#error');
 function showError(m){ errorBox.textContent = m; errorBox.hidden = false; }
 photo.addEventListener('change', () => { const f = photo.files[0]; if(!f) return; thumb.src = URL.createObjectURL(f); thumb.hidden = false; drop.classList.add('has'); });
-const msgs = ['Dibujando tu caricatura…','Exagerando lo justo…','Montando la escena…','Casi está…'];
 form.addEventListener('submit', async e => {
   e.preventDefault(); errorBox.hidden = true;
   if(!photo.files[0]) return showError('Sube una foto primero.');
   if(tries >= 2) return showError('Has usado las 2 pruebas gratuitas. Elige una variante o marca «Necesito cambios».');
-  form.hidden = true; loading.hidden = false; let i = 0;
-  const t = setInterval(()=>{ i=(i+1)%msgs.length; $('#loading-text').textContent = msgs[i]; }, 12000);
+  form.hidden = true; loading.hidden = false; const t0 = Date.now(); $('#bar').style.width = '0';
+  // barra que avanza deprisa al principio y se frena cerca del final (~60 s → 90 %)
+  const t = setInterval(()=>{ $('#bar').style.width = Math.min(97, 100 * (1 - Math.exp(-(Date.now() - t0) / 26000))) + '%'; }, 1000);
   try {
     const r = await fetch('/api/generate', { method:'POST', body: new FormData(form) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al generar');

@@ -681,6 +681,7 @@ async def api_config():
 FREE_TRIES = 2          # pruebas gratis por diseño y persona (IP) cada 24 h (cada una da 2 variantes)
 FREE_TRIES_DAY = 2      # tope total por IP y día: 2 pruebas gratis
 _TRIES: dict[str, list[tuple[float, str]]] = {}
+_BG: set = set()  # tareas en segundo plano (emails), para que no se pierdan antes de terminar
 
 
 def _client_ip(request: Request) -> str:
@@ -688,7 +689,7 @@ def _client_ip(request: Request) -> str:
 
 
 @app.post("/api/generate")
-async def api_generate(request: Request, photo: UploadFile = File(...), notes: str = Form(""), scene: str = Form("clasica"), dedication: str = Form("")):
+async def api_generate(request: Request, photo: UploadFile = File(...), notes: str = Form(""), scene: str = Form("clasica"), dedication: str = Form(""), email: str = Form("")):
     import time as _t
     ip = _client_ip(request); now = _t.time()
     hist = [h for h in _TRIES.get(ip, []) if now - h[0] < 86400]
@@ -731,6 +732,15 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
         await asyncio.to_thread(storage.backup, job_id)
         variants.append({"job_id": job_id, "preview_url": f"/api/preview/{job_id}.jpg"})
     asyncio.get_running_loop().run_in_executor(None, storage.sb_cleanup)
+    # Email opcional: le mandamos sus visualizaciones por si cierra la página durante la espera.
+    # Solo se usa para este envío; no se guarda.
+    email = email.strip()[:200]
+    if re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+", email):
+        from . import mail
+        title = (prod or {}).get("title") or "caricatura"
+        link = f"{config.BASE_URL}/p/{scene_data['id']}?v=" + ",".join(v["job_id"] for v in variants)
+        t = asyncio.create_task(mail.variants_ready(email, title, link, [config.BASE_URL + v["preview_url"] for v in variants]))
+        _BG.add(t); t.add_done_callback(_BG.discard)
     # La foto original no se guarda: solo se usa para generar.
     return {**variants[0], "variants": variants, "demo": config.DEMO_MODE}
 

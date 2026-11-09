@@ -132,6 +132,31 @@ Probado en local en modo demo (script con TestClient: 2 variantes, límite de
 2 pruebas, pago sin cambios = entrega inmediata, con cambios = en espera sin
 descarga ni impresión, rehacer y aprobar).
 
+## Fase F — que no se pierda nadie durante la espera (aprobada por Maria, 9 nov)
+
+Por qué: Clarity (ficha del motero) muestra que ~10 de 25 personas que pulsan
+«Generar» se van a los 1-2 min, justo durante la espera (22 de 25 en el
+navegador de Facebook/Instagram). Al volver, la página se ha recargado y las
+variantes se han perdido (solo se guardan en el móvil al terminar).
+
+Suposiciones:
+- El email es opcional y solo se usa para enviar las visualizaciones pedidas
+  (servicio solicitado, RGPD art. 6.1.b). No se guarda en el pedido ni se usa
+  para recordatorios comerciales (eso pediría consentimiento aparte, LSSI art. 21).
+- El enlace del email abre la ficha con `?v=job1,job2` y la ficha recupera esas
+  variantes (las previews siguen 2 días en Supabase).
+
+TODOs:
+1. [x] Campo opcional «Tu email» en el formulario; `/api/generate` envía al
+       terminar un email con las 2 previews y el enlace de vuelta.
+       → verificar: en demo, con email válido se llama a `mail.variants_ready`;
+       con email inválido o vacío no se envía nada y la generación funciona.
+2. [x] La ficha abierta con `?v=…` muestra esas variantes y se pueden pagar.
+3. [x] Espera: barra de progreso y «Tarda alrededor de 1 minuto. No cierres
+       esta página» en lugar de los mensajes rotatorios.
+4. [x] Privacidad (`legal.html`): una frase sobre el email opcional.
+5. [ ] Desplegar y comprobar en producción (una generación real con email).
+
 ## Fase D — seguimiento
 
 - ~10 nov: revisar en adengine si el % de clics de Meta que cargan sube del 57,8 %.
