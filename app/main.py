@@ -98,13 +98,24 @@ def _seo_head(path: str, title: str, desc: str, image: str = "", og_type: str = 
 GROUP_COL = {"ella": "regalo-para-mujer", "el": "regalo-para-hombre", "pareja": "boda"}
 
 
+def _nonempty_cols(prods: list[dict], cols: list[dict]) -> list[dict]:
+    """Colecciones con al menos un producto; las vacías no se enlazan en ningún sitio."""
+    def n(c):
+        if c["slug"] == "todas":
+            return len(prods)
+        if c["slug"] == "bestsellers":
+            return sum(1 for p in prods if p.get("bestseller"))
+        return sum(1 for p in prods if c["slug"] in (p.get("collections") or []))
+    return [c for c in cols if n(c)]
+
+
 def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[str, str]:
     """Mismo HTML que pinta el JS (nav + rejilla), para que buscadores e IAs vean los diseños sin ejecutar JavaScript."""
     import html as _h
     e = lambda x: _h.escape(x or "", quote=True)
     base = config.PRICE_CANVAS_20x30_CENTS
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
-    nav = "".join(f'<a href="/regalos/{c["slug"]}">{e(c["title"])}</a>' for c in cols if c["slug"] != "todas")
+    nav = "".join(f'<a href="/regalos/{c["slug"]}">{e(c["title"])}</a>' for c in _nonempty_cols(prods, cols) if c["slug"] != "todas")
     items = [p for p in prods if not cat or cat == "todas" or cat in (p.get("collections") or []) or (cat == "bestsellers" and p.get("bestseller"))]
     MAX = 1000 if cat else 12
     out = []
@@ -249,7 +260,7 @@ async def api_scenes(category: str = "", group: str = "", only: str = "", lite: 
     items = [p for p in prods if (not category or category in (p.get("collections") or []) or category == "todas" or (category == "bestsellers" and p.get("bestseller"))) and (not group or p.get("group") == group) and (not only or p["slug"] == only)]
     return {
         "groups": [{"slug": k, "name": v} for k, v in scenes.GROUPS],
-        "categories": [{"slug": c["slug"], "name": c["title"], "title": c.get("h1") or c["title"], "intro": c.get("intro") or ""} for c in cols if c["slug"] != "todas"],
+        "categories": [{"slug": c["slug"], "name": c["title"], "title": c.get("h1") or c["title"], "intro": c.get("intro") or ""} for c in _nonempty_cols(prods, cols) if c["slug"] != "todas"],
         "scenes": [{"id": p["slug"], "name": p["title"], "group": p.get("group") or "el", "categories": p.get("collections") or [], "desc": p.get("short_desc") or "", "image": p.get("image_url"), "images": [] if lite else (p.get("images") or []), "bestseller": p.get("bestseller", False)} for p in items],
         "products": fulfilment.product_list(),
         "discount": config.DISCOUNT_PCT,
@@ -278,7 +289,7 @@ async def sitemap():
     from xml.sax.saxutils import escape as x
     def u(loc, imgs=()):
         return f"<url><loc>{x(loc)}</loc>" + "".join(f"<image:image><image:loc>{x(i)}</image:loc></image:image>" for i in imgs if i) + "</url>"
-    parts = [u(f"{config.BASE_URL}/")] + [u(f"{config.BASE_URL}/coleccion/{c['slug']}") for c in cols]
+    parts = [u(f"{config.BASE_URL}/")] + [u(f"{config.BASE_URL}/coleccion/{c['slug']}") for c in _nonempty_cols(prods, cols)]
     parts += [u(f"{config.BASE_URL}/p/{p['slug']}", (p.get("images") or [p.get("image_url")])[:5]) for p in prods]
     parts += [u(f"{config.BASE_URL}/static/legal.html"), u(f"{config.BASE_URL}/llms.txt")]
     body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
@@ -316,7 +327,7 @@ async def llms_txt():
          "- Pago con tarjeta, Apple Pay o Google Pay (Stripe). Las fotos solo se usan para crear la caricatura.",
          f"- Contacto: {config.CONTACT_EMAIL}. Empresa: Comartinvi S.L., Barcelona (España).", "",
          "## Colecciones"]
-    L += [f"- [{c.get('h1') or c['title']}]({B}/coleccion/{c['slug']}): {c.get('intro') or ''}".rstrip(": ") for c in cols]
+    L += [f"- [{c.get('h1') or c['title']}]({B}/coleccion/{c['slug']}): {c.get('intro') or ''}".rstrip(": ") for c in _nonempty_cols(prods, cols)]
     L += ["", "## Diseños"]
     L += [f"- [{p['title']}]({B}/p/{p['slug']}): {p.get('short_desc') or ''}".rstrip(": ") for p in prods]
     L += ["", "## Más información", f"- [Preguntas frecuentes]({B}/#faq)", f"- [Envíos, devoluciones y aviso legal]({B}/static/legal.html)"]
