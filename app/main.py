@@ -323,7 +323,7 @@ async def llms_txt():
          f"- Archivo digital en alta resolución: {_eur(config.PRICE_DIGITAL_CENTS)}.",
          "- Precios con IVA. Envío gratis en España; se imprime en 24-48 h laborables y llega en 2-4 días laborables.",
          "- Se puede añadir un nombre, una fecha o una dedicatoria. Varias personas en fotos distintas: bajo consulta.",
-         "- Garantía: ves el diseño antes de pagar; si al recibirlo no se parece, se rehace una vez gratis con otra foto; si llega dañado, se repone.",
+         "- Garantía: ves el diseño antes de pagar; si no se parece, se rehace el dibujo una vez gratis con otra foto antes de imprimirlo; si llega dañado, se repone.",
          "- Pago con tarjeta, Apple Pay o Google Pay (Stripe). Las fotos solo se usan para crear la caricatura.",
          f"- Contacto: {config.CONTACT_EMAIL}. Empresa: Comartinvi S.L., Barcelona (España).", "",
          "## Colecciones"]
