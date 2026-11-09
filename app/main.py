@@ -113,7 +113,7 @@ def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[st
     """Mismo HTML que pinta el JS (nav + rejilla), para que buscadores e IAs vean los diseños sin ejecutar JavaScript."""
     import html as _h
     e = lambda x: _h.escape(x or "", quote=True)
-    base = config.PRICE_CANVAS_20x30_CENTS
+    base = config.PRICE_DIGITAL_CENTS  # «desde»: el más barato (solo archivo)
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
     nav = "".join(f'<a href="/regalos/{c["slug"]}">{e(c["title"])}</a>' for c in _nonempty_cols(prods, cols) if c["slug"] != "todas")
     items = [p for p in prods if not cat or cat == "todas" or cat in (p.get("collections") or []) or (cat == "bestsellers" and p.get("bestseller"))]
@@ -144,7 +144,7 @@ def _faq_ld(html: str) -> str:
 
 def _page(name: str, **extra: str) -> HTMLResponse:
     html = (STATIC / name).read_text(encoding="utf-8")
-    base = config.PRICE_CANVAS_20x30_CENTS
+    base = config.PRICE_DIGITAL_CENTS  # «desde»: el más barato (solo archivo)
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
     repl = {
         "BRAND": config.BRAND_NAME,
@@ -315,7 +315,7 @@ async def llms_txt():
     fmt = lambda t: ", ".join(f"{p['size']} {_eur(p['cents'])}" for p in pl if p["type"] == t)
     L = [f"# {config.BRAND_NAME}", "",
          f"> {config.BRAND_NAME} es una tienda online española de caricaturas personalizadas a partir de una foto. Eliges un diseño (profesiones, aficiones, "
-         "cumpleaños, jubilación, bodas, parejas, familias, mascotas…), subes la foto y en 1-2 minutos ves la caricatura con marca de agua (hasta 3 pruebas gratis). "
+         "cumpleaños, jubilación, bodas, parejas, familias, mascotas…), subes la foto y en 1-2 minutos ves 2 versiones de la caricatura con marca de agua (hasta 2 pruebas gratis). "
          "Solo pagas si te gusta, y la recibes impresa en lienzo o póster, o en archivo digital. Es un regalo personalizado original.", "",
          "## Datos clave",
          f"- Lienzo listo para colgar: {fmt('canvas')}.",
@@ -678,8 +678,8 @@ async def api_config():
     }
 
 
-FREE_TRIES = 3          # pruebas gratis por diseño y persona (IP) cada 24 h
-FREE_TRIES_DAY = 3      # tope total por IP y día: 3 pruebas gratis
+FREE_TRIES = 2          # pruebas gratis por diseño y persona (IP) cada 24 h (cada una da 2 variantes)
+FREE_TRIES_DAY = 2      # tope total por IP y día: 2 pruebas gratis
 _TRIES: dict[str, list[tuple[float, str]]] = {}
 
 
@@ -693,9 +693,9 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
     ip = _client_ip(request); now = _t.time()
     hist = [h for h in _TRIES.get(ip, []) if now - h[0] < 86400]
     if sum(1 for h in hist if h[1] == scene) >= FREE_TRIES:
-        raise HTTPException(429, "Has usado las 3 pruebas gratuitas de este diseño. Si quieres otra, escríbenos a hola@caricaturea.com.")
+        raise HTTPException(429, "Has usado las 2 pruebas gratuitas de este diseño. Si quieres otra, escríbenos a hola@caricaturea.com.")
     if len(hist) >= FREE_TRIES_DAY:
-        raise HTTPException(429, "Has usado tus 3 pruebas gratuitas. Elige una de tus opciones o escríbenos a hola@caricaturea.com y te ayudamos.")
+        raise HTTPException(429, "Has usado tus 2 pruebas gratuitas. Elige una de tus opciones o escríbenos a hola@caricaturea.com y te ayudamos.")
     hist.append((now, scene)); _TRIES[ip] = hist
     prod = await catalog.get_product(scene)
     if prod:
@@ -714,24 +714,25 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
         raise HTTPException(400, "No he podido leer la imagen. Sube un JPG, PNG o HEIC convertido a JPG.")
     if min(img.size) < 400:
         raise HTTPException(400, "La foto es muy pequeña: necesitamos al menos 400 px de lado para ver bien la cara.")
-    job_id, d = storage.create_job()
-    storage.update_meta(job_id, status="generating", notes=notes[:300], scene=scene_data["id"], dedication=dedication)
     try:
         async with _sem:
-            result = await imaging.generate(img, notes, scene_data["prompt"], dedication)
+            results = await imaging.generate_variants(img, notes, scene_data["prompt"], dedication, n=2)
+    except Exception:  # noqa: BLE001
+        log.exception("generación falló")
+        raise HTTPException(502, "La caricatura no ha salido. No se te ha cobrado nada; prueba otra vez con otra foto.")
+    variants = []
+    for result in results:  # un pedido por variante: el cliente paga la que elija
         if dedication:
             result = imaging.add_dedication(result, dedication)
-    except Exception as e:  # noqa: BLE001
-        log.exception("generación falló")
-        storage.update_meta(job_id, status="error", error=str(e)[:300])
-        raise HTTPException(502, "La caricatura no ha salido. No se te ha cobrado nada; prueba otra vez con otra foto.")
-    result.save(d / "result.png", format="PNG")
-    (d / "preview.jpg").write_bytes(imaging.make_preview(result))
-    storage.update_meta(job_id, status="previewed", width=result.width, height=result.height)
-    await asyncio.to_thread(storage.backup, job_id)
+        job_id, d = storage.create_job()
+        result.save(d / "result.png", format="PNG")
+        (d / "preview.jpg").write_bytes(imaging.make_preview(result))
+        storage.update_meta(job_id, status="previewed", notes=notes[:300], scene=scene_data["id"], dedication=dedication, width=result.width, height=result.height)
+        await asyncio.to_thread(storage.backup, job_id)
+        variants.append({"job_id": job_id, "preview_url": f"/api/preview/{job_id}.jpg"})
     asyncio.get_running_loop().run_in_executor(None, storage.sb_cleanup)
     # La foto original no se guarda: solo se usa para generar.
-    return {"job_id": job_id, "preview_url": f"/api/preview/{job_id}.jpg", "demo": config.DEMO_MODE}
+    return {**variants[0], "variants": variants, "demo": config.DEMO_MODE}
 
 
 @app.get("/api/preview/{job_id}.jpg")
@@ -755,6 +756,8 @@ async def api_checkout(request: Request):
     meta = storage.read_meta(job_id)
     if not meta or not storage.ensure_file(job_id, "result.png").exists():
         raise HTTPException(404, "La caricatura ha caducado. Vuelve a subir la foto.")
+    changes = bool(body.get("changes"))  # «Necesito cambios»: no se entrega ni imprime hasta aprobar
+    storage.update_meta(job_id, changes=changes, wishes=" ".join(str(body.get("wishes") or "").split())[:500] if changes else "")
     try:
         url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies))
     except Exception as e:  # noqa: BLE001
@@ -793,6 +796,8 @@ def _paid_result(job_id: str) -> Path:
     meta = storage.read_meta(job_id)
     if not meta or not meta.get("paid"):
         raise HTTPException(403, "Este archivo solo está disponible tras el pago.")
+    if meta.get("changes") and not meta.get("approved"):
+        raise HTTPException(403, "Estamos preparando los cambios de tu caricatura: el archivo estará disponible cuando apruebes la versión final.")
     p = storage.ensure_file(job_id, "result.png")
     if not p.exists():
         raise HTTPException(404, "El archivo ya ha caducado.")
@@ -894,10 +899,62 @@ async def api_status(job_id: str):
     meta = storage.read_meta(job_id)
     if not meta:
         raise HTTPException(404)
-    out = {k: meta.get(k) for k in ("status", "paid", "product", "gelato_order", "gelato_status")}
+    out = {k: meta.get(k) for k in ("status", "paid", "product", "gelato_order", "gelato_status", "changes", "approved")}
     prod = fulfilment.PRODUCTS.get(meta.get("product") or "")
     out["amount"] = (prod["cents"] / 100) if prod else None
     return out
+
+
+@app.get("/admin/cambios", response_class=HTMLResponse)
+async def admin_changes(token: str = ""):
+    """Pedidos pagados con «Necesito cambios»: rehacer con indicaciones y aprobar cuando el cliente dé el OK."""
+    _admin(token)
+    import html as _h
+    rows = await asyncio.to_thread(storage.list_pending_changes)
+    cards = "".join(f"""<div style="border:1px solid #ccc;border-radius:8px;padding:12px;margin:12px 0;display:flex;gap:16px;flex-wrap:wrap">
+<img src="/api/preview/{m['job_id']}.jpg?t={int(time.time())}" style="width:220px">
+<div style="flex:1;min-width:260px"><b>{_h.escape(fulfilment.PRODUCTS.get(m.get('product') or '', {}).get('name', ''))}</b><br>
+{_h.escape(m.get('email') or '')} · pedido {m['job_id']}<br><br><b>Cambios que pide:</b> {_h.escape(m.get('wishes') or '(sin detalle)')}<br><br>
+Vista previa para enviar al cliente: <code>{config.BASE_URL}/api/preview/{m['job_id']}.jpg</code><br><br>
+<textarea id="n-{m['job_id']}" rows="3" style="width:100%" placeholder="Indicaciones para la nueva versión (p. ej. pelo más largo, sin gafas)"></textarea><br>
+<button onclick="act('{m['job_id']}','rehacer')">Rehacer con estas indicaciones</button>
+<button onclick="if(confirm('¿El cliente ha aprobado esta versión? Se entrega el archivo o se manda a imprimir.'))act('{m['job_id']}','aprobar')">Aprobar y entregar</button>
+<p style="color:#666">Si no queda satisfecho: devolución desde el panel de Stripe.</p></div></div>""" for m in rows)
+    return HTMLResponse(f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Cambios</title>
+<body style="font-family:sans-serif;padding:16px;max-width:900px;margin:auto"><h2>Pedidos con cambios pendientes ({len(rows)})</h2>{cards or '<p>No hay ninguno.</p>'}
+<script>async function act(id,a){{const n=document.getElementById('n-'+id).value;if(a==='rehacer'&&!n.trim())return alert('Escribe las indicaciones');
+document.body.style.opacity=.5;const r=await fetch('/admin/cambios/'+id+'/'+a+'?token={token}',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{notes:n}})}});
+if(!r.ok)alert((await r.json()).detail||'Error');location.reload();}}</script>""")
+
+
+@app.post("/admin/cambios/{job_id}/{action}")
+async def admin_changes_act(job_id: str, action: str, request: Request, token: str = ""):
+    _admin(token)
+    meta = storage.read_meta(job_id)
+    if not meta or not meta.get("paid") or not meta.get("changes"):
+        raise HTTPException(404, "Pedido no encontrado.")
+    if action == "rehacer":
+        notes = str((await request.json()).get("notes") or "")[:500]
+        src = storage.ensure_file(job_id, "result.png")
+        try:
+            async with _sem:
+                new = await imaging.rework(Image.open(src).convert("RGB"), notes)
+        except Exception as e:  # noqa: BLE001
+            log.exception("rehacer falló")
+            raise HTTPException(502, f"No ha salido: {str(e)[:150]}")
+        n = len(meta.get("reworks") or []) + 1
+        src.replace(src.with_name(f"result-{n}.png"))  # se guarda la anterior por si se prefiere
+        new.save(src, format="PNG")
+        (src.parent / "preview.jpg").write_bytes(imaging.make_preview(new))
+        storage.update_meta(job_id, reworks=[*(meta.get("reworks") or []), notes], width=new.width, height=new.height)
+        await asyncio.to_thread(storage.backup, job_id)
+    elif action == "aprobar":
+        storage.update_meta(job_id, approved=True, approved_at=time.time())
+        await fulfilment.fulfil(job_id)
+        await fulfilment.notify_paid(job_id)
+    else:
+        raise HTTPException(400)
+    return {"ok": True}
 
 
 @app.get("/admin/orders")

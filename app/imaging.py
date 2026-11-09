@@ -6,6 +6,7 @@
 - make_preview(): copia en tamaño web con marca de agua repetida.
 - prepare_print_file(): archivo final a 300 dpi con sangrado para el lienzo.
 """
+import asyncio
 import base64
 import io
 import math
@@ -61,6 +62,32 @@ async def generate(photo, extra_prompt: str = "", scene_prompt: str = "", dedica
         raise RuntimeError(f"OpenAI {r.status_code}: {r.text[:300]}")
     b64 = r.json()["data"][0]["b64_json"]
     return Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
+
+
+async def rework(img: Image.Image, notes: str) -> Image.Image:
+    """Nueva versión de una caricatura ya hecha con los cambios que pide el cliente."""
+    if config.DEMO_MODE:
+        return ImageOps.mirror(img)
+    prompt = ("Edita esta caricatura aplicando SOLO estos cambios y manteniendo igual todo lo demás "
+              "(estilo, escena, encuadre y el parecido de la cara). Sin texto ni marcas de agua. Cambios: " + notes[:500])
+    body = {"model": config.OPENAI_IMAGE_MODEL, "prompt": prompt, "size": config.IMAGE_SIZE, "quality": config.IMAGE_QUALITY, "n": 1,
+            "images": [{"image_url": "data:image/png;base64," + base64.b64encode(_to_png_bytes(img)).decode()}]}
+    async with httpx.AsyncClient(timeout=240) as client:
+        r = await client.post("https://api.openai.com/v1/images/edits", headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"}, json=body)
+    if r.status_code != 200:
+        raise RuntimeError(f"OpenAI {r.status_code}: {r.text[:300]}")
+    return Image.open(io.BytesIO(base64.b64decode(r.json()["data"][0]["b64_json"]))).convert("RGB")
+
+
+async def generate_variants(photo, extra_prompt: str = "", scene_prompt: str = "", dedication: str = "", n: int = 2) -> list[Image.Image]:
+    """n variantes en paralelo (n llamadas: mismo tiempo de espera que una). Si alguna falla, vale con las que salgan."""
+    res = await asyncio.gather(*[generate(photo, extra_prompt, scene_prompt, dedication) for _ in range(n)], return_exceptions=True)
+    ok = [r for r in res if isinstance(r, Image.Image)]
+    if not ok:
+        raise res[0]
+    if config.DEMO_MODE and len(ok) > 1:  # en demo, que se distingan
+        ok[1:] = [ImageOps.mirror(r) for r in ok[1:]]
+    return ok
 
 
 async def generate_from_text(scene_prompt: str) -> Image.Image:

@@ -129,6 +129,8 @@ async def fulfil(job_id: str) -> dict:
     meta = storage.read_meta(job_id) or {}
     if not meta.get("paid") or meta.get("gelato_order"):
         return meta
+    if meta.get("changes") and not meta.get("approved"):  # «Necesito cambios»: espera a la versión aprobada
+        return storage.update_meta(job_id, status="awaiting_changes")
     product = meta.get("product")
     if product == "digital":
         return storage.update_meta(job_id, status="delivered")
@@ -185,6 +187,11 @@ async def notify_paid(job_id: str):
     if not meta.get("paid"):
         return
     p = PRODUCTS.get(meta.get("product") or "") or {}
+    if meta.get("changes") and not meta.get("approved"):
+        await notify_once(job_id, "changes", mail.changes_received, meta)
+        await notify_once(job_id, "changes_admin", mail.admin_alert, "Pedido con cambios",
+                          f"{p.get('name', '')} · {meta.get('email') or ''}\nCambios: {meta.get('wishes') or '(sin detalle)'}\nPedido: {job_id}\nGestionar en /admin/cambios")
+        return
     await notify_once(job_id, "confirmed", mail.order_confirmed, job_id, meta, p.get("name", "Caricatura"), p.get("cents", 0), not p.get("ships", True))
 
 

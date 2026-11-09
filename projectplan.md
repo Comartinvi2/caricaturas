@@ -65,6 +65,73 @@ Pendiente: en móviles DPR 3 el srcset sigue eligiendo `main.jpg` (~230 KB).
 Pesan ~250-330 KB, menos urgente. Revisar: peso de ficha, favicon, catálogo
 completo. Mejor como tarea aparte cuando A y B estén cerradas.
 
+## Fase E — ficha como la tienda polaca (aprobada por Maria, 9 nov)
+
+Por qué: Clarity (30 días, 200 sesiones con cookies aceptadas) muestra que el
+25 % genera su caricatura pero casi nadie pulsa «Pedir» (1 clic en la ficha del
+motero, 25 sesiones que generaron). Se van en el momento de decidir. La tienda
+polaca, con los mismos precios, resuelve ese momento con 2 variantes, cambios
+con texto y garantía de devolución.
+
+Suposiciones:
+- OpenAI `images/edits` acepta `n: 2` con nuestro modelo (una llamada, 2 imágenes).
+  Si no, se hacen 2 llamadas en paralelo. Coste por intento ×2; con 2 intentos
+  (decisión de Maria, 9 nov) son hasta 4 imágenes por persona y día (hoy 3).
+- Los ajustes después de pagar los atiende Maria/Eva a mano (email o Tawk.to);
+  no se construye un «panel» como el polaco.
+- Precio: igual que ahora durante 1-2 semanas para medir el efecto de estos
+  cambios; luego se decide si bajarlo.
+- Sin «Se vendieron 3 en 24 horas» salvo que sea un dato real.
+
+TODOs (cada uno se prueba en local en modo demo y luego en producción):
+
+1. [x] Cada «Generar visualización» crea 2 variantes (2 job_id) en vez de 1.
+       Intentos gratis: 2 en 24 h (antes 3), en servidor y en la ficha.
+       → verificar: en modo demo salen 2 imágenes con marca de agua y las dos se
+       pueden pagar.
+2. [x] Textos de la caja de fotos: «Hasta 2 pruebas gratuitas en 24 horas.» y
+       «Sube una foto, añade tus deseos y pulsa "Generar visualización".
+       Crearemos dos visualizaciones. Tarda unos minutos.»
+3. [x] Elegir variante con botones «Elijo la opción 1 / 2 …» bajo cada imagen y
+       una opción más: «Necesito cambios». Al marcarla se muestra: «Tras pagar tu
+       pedido te escribimos para preparar más variantes y hacer los ajustes que
+       necesites hasta que te guste. Si no quedas satisfecho, te devolvemos el
+       importe.» El pedido guarda esa elección para que el aviso de pago al
+       equipo diga «quiere cambios».
+       Con «Necesito cambios» el pedido queda EN ESPERA: no se entrega el archivo
+       sin marca de agua ni se manda a Gelato hasta que el cliente apruebe la
+       versión final (hoy ambas cosas pasan nada más pagar). Mismas garantías
+       que la polaca para todos los productos (decisión de Maria, 9 nov): si tras
+       los cambios no queda satisfecho, se le devuelve el importe total (no se
+       llegó a entregar ni imprimir nada). Quien elige una variante sin cambios
+       («Acepto esta variante») recibe el archivo / se imprime al momento, como hoy.
+       → verificar: elegir cada opción cambia la variante que se paga; la
+       elección llega al email de pedido; con «Necesito cambios» no hay
+       descarga ni pedido a Gelato tras pagar.
+4. [x] «Probar con otra foto» pasa a «Generar otra visualización»: conserva la
+       foto subida y deja editar los deseos (ahora borra la foto).
+5. [x] Tocar la caricatura la amplía a pantalla completa (Clarity: clics
+       repetidos sin efecto sobre «Tu caricatura»).
+6. [x] Tipo «Solo archivo» marcado por defecto y su precio arriba (como la
+       polaca). Portada y tarjetas: «desde 25,90 €».
+7. [x] Garantía en «Envíos y devoluciones» (ficha) y en `legal.html`: cambiar
+       «Si no se parece, lo rehacemos una vez gratis» por los ajustes hasta que
+       guste o devolución del importe; y matizar «Los archivos digitales no
+       admiten devolución una vez descargados» (con cambios pedidos, el archivo
+       no se descarga hasta aprobarlo). Texto exacto a revisar con Maria antes de
+       publicarlo (es un compromiso legal frente al cliente).
+8. [ ] Medir 1-2 semanas en Clarity: clics en «Pedir» y ventas.
+
+Hecho (9 nov): las 2 variantes son 2 llamadas en paralelo a OpenAI (más
+robusto que `n: 2`). Pedidos con cambios: página `/admin/cambios?token=…`
+(lista los pagados con «Necesito cambios», botón «Rehacer con estas
+indicaciones» que edita la caricatura con OpenAI y guarda la anterior, y
+«Aprobar y entregar» que manda a imprimir o habilita la descarga y envía el
+email de siempre). La devolución, si hace falta, se hace a mano en Stripe.
+Probado en local en modo demo (script con TestClient: 2 variantes, límite de
+2 pruebas, pago sin cambios = entrega inmediata, con cambios = en espera sin
+descarga ni impresión, rehacer y aprobar).
+
 ## Fase D — seguimiento
 
 - ~10 nov: revisar en adengine si el % de clics de Meta que cargan sube del 57,8 %.

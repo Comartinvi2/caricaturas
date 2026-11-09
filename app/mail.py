@@ -99,6 +99,14 @@ async def order_confirmed(job_id: str, o: dict, product_name: str, cents: int, d
                       items=[{"name": product_name, "qty": 1, "cents": cents}])
 
 
+async def changes_received(o: dict):
+    hola = f"¡Hola, {_name(o)}!" if _name(o) else "¡Hola!"
+    return await send(o.get("email"), "Hemos recibido tu pedido: preparamos los cambios",
+                      [hola, "Gracias por tu pedido. Hemos anotado los cambios que nos pides y te enviaremos nuevas versiones de tu caricatura, normalmente en 24-48 horas.",
+                       "Haremos los ajustes que necesites hasta que te guste; no se entrega ni se imprime nada sin tu aprobación. Si al final no quedas satisfecho, te devolvemos el importe total.",
+                       "Si quieres añadir algo, responde a este correo."])
+
+
 async def order_shipped(o: dict, tracking_url: str | None, carrier: str | None):
     p = ["¡Tu caricatura ya ha salido de la imprenta y va de camino!" + (f" Lo lleva {html.escape(carrier)}." if carrier else ""),
          "Suele llegar en 2-5 días laborables."]

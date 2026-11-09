@@ -75,8 +75,8 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
       <p class="chosen-price">Precio: <b id="price-now"></b> · envío gratis</p>
 
       <h3 class="upload-title">ENVIAR FOTOS</h3>
-      <p class="upload-sub">Hasta 3 pruebas gratuitas.</p>
-      <p class="hint">Sube una foto, añade tus deseos y pulsa "Generar visualización". Tarda 1-2 minutos.</p>
+      <p class="upload-sub">Hasta 2 pruebas gratuitas en 24 horas.</p>
+      <p class="hint">Sube una foto, añade tus deseos y pulsa "Generar visualización". Crearemos dos visualizaciones. Tarda unos minutos.</p>
       <form id="form" enctype="multipart/form-data">
         <input type="hidden" name="scene" value="{{SCENE_ID}}">
         <label class="drop" id="drop"><input type="file" id="photo" name="photo" accept="image/*" required><div class="drop-inner"><strong>+ Subir foto</strong><span>De frente, con luz, cara grande. 1-4 personas o tu mascota.</span></div><img id="thumb" alt="" hidden></label>
@@ -88,15 +88,20 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
       <p class="error" id="error" hidden></p>
 
       <div id="preview-box" hidden>
-        <img id="preview" alt="Tu caricatura">
+        <img id="preview" alt="Tu caricatura" title="Toca para ampliar" style="cursor:zoom-in">
         <div class="variants" id="variants" hidden>
           <h3 class="var-title">Tus visualizaciones (<span id="var-n">0</span>)</h3>
-          <p class="hint">¿Cuál eliges? Las guardamos 48 horas; si no pides ninguna, se borran.</p>
+          <p class="hint">¿Qué variante eliges? Las guardamos 48 horas; si no pides ninguna, se borran.</p>
           <div class="var-grid" id="var-grid"></div>
+          <label class="var-changes" style="display:block;margin:10px 0;cursor:pointer"><input type="radio" name="variant" id="need-changes"> Necesito cambios</label>
+          <div id="changes-box" hidden>
+            <textarea id="wishes" maxlength="500" rows="3" placeholder="Cuéntanos qué cambiarías: pelo más largo, sin gafas, otra sonrisa…"></textarea>
+            <p class="hint">Tras pagar tu pedido te enviaremos nuevas versiones con los cambios y haremos los ajustes que necesites hasta que te guste. No se entrega ni se imprime nada sin tu aprobación. Si no quedas satisfecho, te devolvemos el importe total.</p>
+          </div>
         </div>
-        <p class="hint">La marca de agua desaparece al pagar. ¿No te convence? Genera otra (te quedan <b id="left">2</b>).</p>
+        <p class="hint">La marca de agua desaparece al pagar. ¿No te convence ninguna? Genera otras dos (te quedan <b id="left">1</b>).</p>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
-        <button class="btn btn-ghost" id="retry">Probar con otra foto</button>
+        <button class="btn btn-ghost" id="retry">Generar otra visualización</button>
       </div>
       <div class="wa-row" id="wa-row" hidden><a class="btn btn-wa" id="wa-order" target="_blank">Haz tu pedido por WhatsApp</a><a class="btn btn-wa-outline" id="wa-ask" target="_blank">Haz una pregunta por WhatsApp</a></div>
       <p class="pay-icons">Visa · Mastercard · Google Pay · Apple Pay</p>
@@ -104,7 +109,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
 
     <details class="acc" open><summary>Descripción</summary><div class="desc">{{SCENE_HTML}}</div></details>
     <details class="acc"><summary>¿Cuadro sobre lienzo o póster?</summary><p><b>Lienzo:</b> la opción decorativa, parece un cuadro pintado; lleva bastidor de madera, no necesita marco. <b>Póster:</b> alternativa más económica para enmarcar tú, en papel grueso de 200 g.</p></details>
-    <details class="acc"><summary>Envíos y devoluciones</summary><p>Envío gratis en España, 24-48 h tras tu aprobación más 2-4 días de tránsito. Si no se parece, lo rehacemos una vez gratis; si llega dañado, lo reponemos.</p></details>
+    <details class="acc"><summary>Envíos y devoluciones</summary><p>Envío gratis en España, 24-48 h tras tu aprobación más 2-4 días de tránsito. Garantía: si al pedir marcas «Necesito cambios», te enviamos nuevas versiones y hacemos los ajustes que necesites hasta que te guste; no se entrega el archivo ni se imprime nada sin tu aprobación, y si al final no quedas satisfecho te devolvemos el importe total. Si llega dañado, lo reponemos.</p></details>
   </div>
 </div>
 </main>
@@ -119,20 +124,22 @@ const DEMO = {{DEMO}}, SCENE = "{{SCENE_ID}}", SCENE_NAME = "{{SCENE_NAME}}";
 function setMain(u){ const m = document.getElementById('main-img'); if (m) { m.removeAttribute('srcset'); m.src = u; } }
 const $ = s => document.querySelector(s);
 const eur = c => (c/100).toFixed(2).replace('.', ',') + ' €';
-let D = null, type = 'canvas', product = null, jobId = null, tries = 0;
+let D = null, type = 'digital', product = null, jobId = null, tries = 0;
 const TKEY = 'tries:' + location.pathname; try { tries = +(localStorage.getItem(TKEY) || 0); } catch(e) {}
 // todas las pruebas se guardan como opciones durante 48 h (en el servidor se borran a los 2 días si no se pagan)
 const VKEY = 'variants:' + location.pathname, TTL = 48 * 3600 * 1000;
 let variants = []; try { variants = JSON.parse(localStorage.getItem(VKEY) || '[]').filter(v => Date.now() - v.t < TTL); } catch(e) {}
 function saveVariants(){ try { localStorage.setItem(VKEY, JSON.stringify(variants)); } catch(e) {} }
+let needChanges = false;
 function selectVariant(id){ jobId = id; const v = variants.find(x => x.id === id); if (!v) return;
   $('#preview').src = v.url; setMain(v.url);
-  document.querySelectorAll('#var-grid .var').forEach(el => el.classList.toggle('on', el.dataset.id === id)); }
+  document.querySelectorAll('#var-grid .var').forEach(el => { const on = el.dataset.id === id; el.classList.toggle('on', on); el.querySelector('input').checked = on && !needChanges; }); }
+function setChanges(on){ needChanges = on; $('#need-changes').checked = on; $('#changes-box').hidden = !on; selectVariant(jobId); }
 function renderVariants(){
-  $('#variants').hidden = variants.length < 2; $('#var-n').textContent = variants.length;
+  $('#variants').hidden = variants.length < 1; $('#var-n').textContent = variants.length;
   $('#var-grid').innerHTML = variants.map((v, i) => `<label class="var ${v.id === jobId ? 'on' : ''}" data-id="${v.id}"><img src="${v.url}" alt="Opción ${i+1}" loading="lazy">
     <span><input type="radio" name="variant" ${v.id === jobId ? 'checked' : ''}> Elijo la opción ${i+1}</span></label>`).join('');
-  document.querySelectorAll('#var-grid .var').forEach(el => el.onclick = () => selectVariant(el.dataset.id));
+  document.querySelectorAll('#var-grid .var').forEach(el => el.onclick = () => { needChanges = false; $('#changes-box').hidden = true; $('#need-changes').checked = false; selectVariant(el.dataset.id); });
 }
 const TYPE_LABEL = {digital: 'Solo archivo (sin impresión)', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
 
@@ -145,7 +152,7 @@ async function load(){
   const minOf = t => Math.min(...D.products.filter(p=>p.type===t).map(p=>p.cents));
   $('#types').innerHTML = ['digital','canvas','poster'].map(t => `<label class="type ${t===type?'on':''}" data-t="${t}"><b>${TYPE_LABEL[t]}</b><small>desde ${eur(minOf(t))}</small></label>`).join('');
   $('#types').addEventListener('click', e => { const l = e.target.closest('.type'); if(!l) return; type = l.dataset.t; document.querySelectorAll('.type').forEach(x=>x.classList.toggle('on', x===l)); renderSizes(); });
-  const base = minOf('canvas'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
+  const base = minOf('digital'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
   renderSizes(); const me = D.scenes.find(x=>x.id===SCENE); if (me && me.images && me.images.length) { $('#thumbs').innerHTML = me.images.map((u,i)=>`<img src="${u.includes('/object/public/caricaturas/') ? u.replace(/\.jpg$/,'-t.webp') : u}" data-full="${u}" data-i="${i}" class="${i===0?'on':''}" loading="lazy" onerror="this.onerror=null;this.src=this.dataset.full">`).join(''); $('#thumbs').querySelectorAll('img').forEach(im=>im.addEventListener('click',()=>{ setMain(im.dataset.full); $('#thumbs').querySelectorAll('img').forEach(x=>x.classList.remove('on')); im.classList.add('on'); })); }
   if (D.whatsapp) { $('#wa-row').hidden = false; $('#wa-order').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, quiero pedir la caricatura "'+SCENE_NAME+'"')}`; $('#wa-ask').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, tengo una pregunta sobre "'+SCENE_NAME+'"')}`; }
 }
@@ -165,26 +172,29 @@ const msgs = ['Dibujando tu caricatura…','Exagerando lo justo…','Montando la
 form.addEventListener('submit', async e => {
   e.preventDefault(); errorBox.hidden = true;
   if(!photo.files[0]) return showError('Sube una foto primero.');
-  if(tries >= 3) return showError('Has usado las 3 pruebas gratuitas. Si quieres otra, escríbenos.');
+  if(tries >= 2) return showError('Has usado las 2 pruebas gratuitas. Elige una variante o marca «Necesito cambios».');
   form.hidden = true; loading.hidden = false; let i = 0;
   const t = setInterval(()=>{ i=(i+1)%msgs.length; $('#loading-text').textContent = msgs[i]; }, 12000);
   try {
     const r = await fetch('/api/generate', { method:'POST', body: new FormData(form) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al generar');
     tries++; try { localStorage.setItem(TKEY, tries); } catch(e) {} jobId = data.job_id;
-    variants.push({id: data.job_id, url: data.preview_url, t: Date.now()}); saveVariants(); renderVariants(); if(window.track) track('generate',{item:SCENE_NAME}); $('#left').textContent = 3 - tries;
+    (data.variants || [data]).forEach(v => variants.push({id: v.job_id, url: v.preview_url, t: Date.now()})); saveVariants(); renderVariants(); selectVariant(jobId); if(window.track) track('generate',{item:SCENE_NAME}); $('#left').textContent = Math.max(0, 2 - tries);
     $('#preview').src = data.preview_url + '?t=' + Date.now(); $('#preview-box').hidden = false; setMain($('#preview').src);
     $('#preview-box').scrollIntoView({behavior:'smooth', block:'center'});
   } catch(err) { showError(err.message); form.hidden = false; }
   finally { clearInterval(t); loading.hidden = true; }
 });
 if (variants.length) { jobId = variants[variants.length - 1].id; $('#preview-box').hidden = false; renderVariants(); selectVariant(jobId);
-  $('#left').textContent = Math.max(0, 3 - tries); }
-$('#retry').addEventListener('click', () => { $('#preview-box').hidden = true; form.hidden = false; photo.value=''; thumb.hidden = true; drop.classList.remove('has'); });
+  $('#left').textContent = Math.max(0, 2 - tries); }
+$('#retry').addEventListener('click', () => { form.hidden = false; form.scrollIntoView({behavior:'smooth', block:'center'}); });
+$('#need-changes').addEventListener('change', () => setChanges(true));
+$('#preview').addEventListener('click', () => { const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  o.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain">'; o.firstChild.src = $('#preview').src; o.onclick = () => o.remove(); document.body.appendChild(o); });
 $('#pay').addEventListener('click', async () => {
   $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
   try {
-    const r = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ job_id: jobId, product: product.id }) });
+    const r = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ job_id: jobId, product: product.id, changes: needChanges, wishes: needChanges ? $('#wishes').value : '' }) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al iniciar el pago');
     location.href = data.url;
   } catch(err) { showError(err.message); $('#pay').disabled = false; }

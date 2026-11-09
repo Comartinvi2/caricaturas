@@ -202,6 +202,21 @@ def cleanup() -> int:
     return removed
 
 
+def list_pending_changes() -> list[dict]:
+    """Pedidos pagados con «Necesito cambios» que aún no se han aprobado (Supabase: el disco se borra)."""
+    rows = []
+    if SB_ON:
+        try:
+            r = httpx.get(f"{SB_URL}/rest/v1/car_orders", headers=_h(), timeout=30,
+                          params={"select": "job_id,meta", "meta->>changes": "eq.true", "meta->>paid": "eq.true", "order": "updated_at.desc", "limit": "200"})
+            rows = [{**x["meta"], "job_id": x["job_id"]} for x in (r.json() if r.status_code == 200 else [])]
+        except Exception:
+            rows = []
+    else:
+        rows = [m for m in list_jobs() if m.get("changes") and m.get("paid")]
+    return [m for m in rows if not m.get("approved")]
+
+
 def list_jobs() -> list[dict]:
     out = []
     if not JOBS.exists():

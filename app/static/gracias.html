@@ -67,7 +67,10 @@ document.getElementById('job').textContent = job;
   const title = document.getElementById('title'), msg = document.getElementById('msg'), act = document.getElementById('actions'), img = document.getElementById('img');
   if (!s.paid) { title.textContent = 'No encontramos el pago'; msg.textContent = 'Si has pagado, espera un minuto y recarga la página. Si no, vuelve atrás y prueba de nuevo.'; return; }
   img.src = '/api/preview/' + job + '.jpg'; img.hidden = false; try{ if(window.track && !sessionStorage.getItem('p_'+job)){ track('purchase',{value: s.amount||0, transaction_id: job, item: s.product}); sessionStorage.setItem('p_'+job,'1'); } }catch(e){}
-  if (s.product === 'digital') {
+  if (s.changes && !s.approved) {
+    title.textContent = '¡Gracias! Preparamos tus cambios';
+    msg.textContent = 'Te enviaremos nuevas versiones por email, normalmente en 24-48 horas. Haremos los ajustes que necesites hasta que te guste: no se entrega ni se imprime nada sin tu aprobación. Si al final no quedas satisfecho, te devolvemos el importe total.';
+  } else if (s.product === 'digital') {
     title.textContent = '¡Listo! Aquí tienes tu caricatura';
     msg.textContent = 'Descárgala en alta resolución (PNG, 300 dpi), sin marca de agua.';
     act.innerHTML = '<a class="btn btn-primary" href="/api/download/' + job + '.png">Descargar mi caricatura</a>';
