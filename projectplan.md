@@ -50,11 +50,15 @@ Pendiente: en móviles DPR 3 el srcset sigue eligiendo `main.jpg` (~230 KB).
 - Hallazgo: el transporte YA iba comprimido por el proxy de Render (603 KB →
   40 KB con gzip), así que el ahorro real de esta fase es sobre todo de parseo
   y memoria en móviles (y 40 → 25 KB de red), no los ~550 KB aparentes.
-- Hallazgo (datos, no código): las colecciones `boda` (0 productos),
-  `aniversario` (3) y `familia` (3) están casi vacías — el importador apenas
-  asignó esas colecciones. El filtro «Boda» de la portada y
-  `/coleccion/boda` salen vacíos. Pendiente de decidir si retocar las
-  asignaciones en Supabase.
+- Hallazgo (datos, no código): no existe NINGÚN producto de boda/pareja, ni en
+  el catálogo ni en la tienda polaca de origen (`aniversario` tiene 1 y
+  `familia` 3). No había nada que reetiquetar.
+- [x] Decisión de Maria (9 nov): ocultar las colecciones sin productos.
+      Commit 83ec420: `_nonempty_cols()` filtra menú, filtros de portada,
+      sitemap y llms.txt; `/coleccion/<slug>` sigue existiendo por si llega
+      un enlace antiguo. Verificado en producción (13 filtros, sin «Boda»).
+- Pendiente de decidir algún día: crear productos de boda/aniversario
+  (reaparecerían solos en los filtros al tener productos).
 
 ## Fase C — mismo patrón en cuadrosconalma y poster-nacimiento (después)
 
