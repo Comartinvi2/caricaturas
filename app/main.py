@@ -244,13 +244,13 @@ async def product_page(slug: str):
 
 
 @app.get("/api/scenes")
-async def api_scenes(category: str = "", group: str = "", only: str = ""):
+async def api_scenes(category: str = "", group: str = "", only: str = "", lite: bool = False):
     prods, cols = await catalog.get_catalog()
     items = [p for p in prods if (not category or category in (p.get("collections") or []) or category == "todas" or (category == "bestsellers" and p.get("bestseller"))) and (not group or p.get("group") == group) and (not only or p["slug"] == only)]
     return {
         "groups": [{"slug": k, "name": v} for k, v in scenes.GROUPS],
         "categories": [{"slug": c["slug"], "name": c["title"], "title": c.get("h1") or c["title"], "intro": c.get("intro") or ""} for c in cols if c["slug"] != "todas"],
-        "scenes": [{"id": p["slug"], "name": p["title"], "group": p.get("group") or "el", "categories": p.get("collections") or [], "desc": p.get("short_desc") or "", "image": p.get("image_url"), "images": p.get("images") or [], "bestseller": p.get("bestseller", False)} for p in items],
+        "scenes": [{"id": p["slug"], "name": p["title"], "group": p.get("group") or "el", "categories": p.get("collections") or [], "desc": p.get("short_desc") or "", "image": p.get("image_url"), "images": [] if lite else (p.get("images") or []), "bestseller": p.get("bestseller", False)} for p in items],
         "products": fulfilment.product_list(),
         "discount": config.DISCOUNT_PCT,
         "whatsapp": config.WHATSAPP,

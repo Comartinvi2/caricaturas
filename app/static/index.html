@@ -180,7 +180,7 @@ let D = null; let curCat = CATEGORY;
 const SEARCH_ICO = `<a class="search-ico" href="#catalogo" aria-label="Buscar" onclick="setTimeout(()=>document.getElementById('q').focus(),300)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></a>`;
 const norm = t => (t||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 async function load(){
-  D = await (await fetch('/api/scenes')).json();
+  D = await (await fetch('/api/scenes?lite=1')).json();
   $('#nav').innerHTML = D.categories.map(c => `<a href="/regalos/${c.slug}">${c.name}</a>`).join('') + SEARCH_ICO;
   const f = $('#filters');
   f.innerHTML = `<button data-cat="" class="${CATEGORY?'':'on'}">Todos</button>` + D.categories.map(c => `<button data-cat="${c.slug}" class="${c.slug===CATEGORY?'on':''}">${c.name}</button>`).join('');
