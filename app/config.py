@@ -19,7 +19,7 @@ CONTACT_EMAIL = env("CONTACT_EMAIL", "hola@caricaturea.es")
 # polaca cobra 109,60 zł el archivo, desde 158 zł el lienzo y desde 153 zł el póster
 # (1 zł ≈ 0,235 €). Cada uno se puede cambiar con su variable de entorno.
 PRICES_CENTS = {
-    "digital": int(env("PRICE_DIGITAL_CENTS", "299")),
+    "digital": 299,  # fijo: en Render queda PRICE_DIGITAL_CENTS=2590 de antes y no hay acceso para cambiarlo
     "canvas_20x30": int(env("PRICE_CANVAS_20x30_CENTS", "3790")),
     "canvas_30x40": int(env("PRICE_CANVAS_30x40_CENTS", "4790")),
     "canvas_40x50": int(env("PRICE_CANVAS_40x50_CENTS", "5990")),
