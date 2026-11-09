@@ -127,7 +127,7 @@ const DEMO = {{DEMO}}, SCENE = "{{SCENE_ID}}", SCENE_NAME = "{{SCENE_NAME}}";
 function setMain(u){ const m = document.getElementById('main-img'); if (m) { m.removeAttribute('srcset'); m.src = u; } }
 const $ = s => document.querySelector(s);
 const eur = c => (c/100).toFixed(2).replace('.', ',') + ' €';
-let D = null, type = 'digital', product = null, jobId = null, tries = 0;
+let D = null, type = 'canvas', product = null, jobId = null, tries = 0;
 const TKEY = 'tries:' + location.pathname; try { tries = +(localStorage.getItem(TKEY) || 0); } catch(e) {}
 // todas las pruebas se guardan como opciones durante 48 h (en el servidor se borran a los 2 días si no se pagan)
 const VKEY = 'variants:' + location.pathname, TTL = 48 * 3600 * 1000;
@@ -156,9 +156,9 @@ async function load(){
   D = await (await fetch('/api/scenes?only=' + encodeURIComponent(SCENE))).json();
   $('#nav').innerHTML = D.categories.map(c => `<a href="/regalos/${c.slug}">${c.name}</a>`).join('');
   const minOf = t => Math.min(...D.products.filter(p=>p.type===t).map(p=>p.cents));
-  $('#types').innerHTML = ['digital','canvas','poster'].map(t => `<label class="type ${t===type?'on':''}" data-t="${t}"><b>${TYPE_LABEL[t]}</b><small>desde ${eur(minOf(t))}</small></label>`).join('');
+  $('#types').innerHTML = ['canvas','poster','digital'].map(t => `<label class="type ${t===type?'on':''}" data-t="${t}"><b>${TYPE_LABEL[t]}</b><small>desde ${eur(minOf(t))}</small></label>`).join('');
   $('#types').addEventListener('click', e => { const l = e.target.closest('.type'); if(!l) return; type = l.dataset.t; document.querySelectorAll('.type').forEach(x=>x.classList.toggle('on', x===l)); renderSizes(); });
-  const base = minOf('digital'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
+  const base = minOf('canvas'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
   renderSizes(); const me = D.scenes.find(x=>x.id===SCENE); if (me && me.images && me.images.length) { $('#thumbs').innerHTML = me.images.map((u,i)=>`<img src="${u.includes('/object/public/caricaturas/') ? u.replace(/\.jpg$/,'-t.webp') : u}" data-full="${u}" data-i="${i}" class="${i===0?'on':''}" loading="lazy" onerror="this.onerror=null;this.src=this.dataset.full">`).join(''); $('#thumbs').querySelectorAll('img').forEach(im=>im.addEventListener('click',()=>{ setMain(im.dataset.full); $('#thumbs').querySelectorAll('img').forEach(x=>x.classList.remove('on')); im.classList.add('on'); })); }
   if (D.whatsapp) { $('#wa-row').hidden = false; $('#wa-order').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, quiero pedir la caricatura "'+SCENE_NAME+'"')}`; $('#wa-ask').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, tengo una pregunta sobre "'+SCENE_NAME+'"')}`; }
 }

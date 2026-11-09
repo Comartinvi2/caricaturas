@@ -113,7 +113,7 @@ def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[st
     """Mismo HTML que pinta el JS (nav + rejilla), para que buscadores e IAs vean los diseños sin ejecutar JavaScript."""
     import html as _h
     e = lambda x: _h.escape(x or "", quote=True)
-    base = config.PRICE_DIGITAL_CENTS  # «desde»: el más barato (solo archivo)
+    base = config.PRICE_CANVAS_20x30_CENTS  # «desde»: el lienzo más pequeño (el archivo es un extra)
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
     nav = "".join(f'<a href="/regalos/{c["slug"]}">{e(c["title"])}</a>' for c in _nonempty_cols(prods, cols) if c["slug"] != "todas")
     items = [p for p in prods if not cat or cat == "todas" or cat in (p.get("collections") or []) or (cat == "bestsellers" and p.get("bestseller"))]
@@ -144,7 +144,7 @@ def _faq_ld(html: str) -> str:
 
 def _page(name: str, **extra: str) -> HTMLResponse:
     html = (STATIC / name).read_text(encoding="utf-8")
-    base = config.PRICE_DIGITAL_CENTS  # «desde»: el más barato (solo archivo)
+    base = config.PRICE_CANVAS_20x30_CENTS  # «desde»: el lienzo más pequeño (el archivo es un extra)
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
     repl = {
         "BRAND": config.BRAND_NAME,

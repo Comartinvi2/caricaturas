@@ -166,6 +166,9 @@ TODOs:
 Antes 25,90 €. Cambiado el mismo día que se publicaron las Fases E y F, así
 que al medir no se podrá separar el efecto de cada cambio. Lienzo y póster
 siguen desde 35,90 €.
+Mismo día (decisión de Maria): el lienzo pasa a ser la opción marcada por
+defecto y la primera; «desde» en portada y fichas = lienzo 20x30. El archivo
+queda el último, como extra.
 
 ## Fase D — seguimiento
 
