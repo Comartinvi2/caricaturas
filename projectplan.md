@@ -40,16 +40,21 @@ Pendiente: en móviles DPR 3 el srcset sigue eligiendo `main.jpg` (~230 KB).
       `currentSrc` es `main-m.webp` y la ficha se ve bien. DPR 3 queda
       garantizado por el cálculo del propio `sizes` (266×3 ≈ 800).
 
-## Fase B — portada (valorar, decidir con Maria)
+## Fase B — portada — HECHO (commit 4354e75, 9 nov)
 
-`index.html` sigue bajando `/api/scenes` completo (~594 KB). La portada ya tiene
-grid SSR; el JSON se usa para filtros y para el flujo de subida. Opciones:
-
-1. **Modo ligero** `?lite=1`: en el listado, quitar de cada escena `desc` e
-   `images` (solo se usan en la ficha). Estimación: reduce el JSON a menos de
-   la mitad sin tocar la lógica de filtros. ← la más simple, recomendada.
-2. Paginar: rompe el filtrado en cliente; más código. Descartada salvo que (1)
-   no baste.
+- [x] `/api/scenes?lite=1` vacía el array `images` (3.052 URLs que la portada
+      no usa); `desc` se queda porque las tarjetas y el buscador lo usan.
+      JSON: 603 KB → 206 KB en bruto. La ficha (`?only=`) no cambia.
+- [x] Verificado en producción: la portada pide `?lite=1` (25 KB transferidos),
+      36 tarjetas, tira hero y filtros funcionan, consola sin errores.
+- Hallazgo: el transporte YA iba comprimido por el proxy de Render (603 KB →
+  40 KB con gzip), así que el ahorro real de esta fase es sobre todo de parseo
+  y memoria en móviles (y 40 → 25 KB de red), no los ~550 KB aparentes.
+- Hallazgo (datos, no código): las colecciones `boda` (0 productos),
+  `aniversario` (3) y `familia` (3) están casi vacías — el importador apenas
+  asignó esas colecciones. El filtro «Boda» de la portada y
+  `/coleccion/boda` salen vacíos. Pendiente de decidir si retocar las
+  asignaciones en Supabase.
 
 ## Fase C — mismo patrón en cuadrosconalma y poster-nacimiento (después)
 
