@@ -155,7 +155,11 @@ TODOs:
 3. [x] Espera: barra de progreso y «Tarda alrededor de 1 minuto. No cierres
        esta página» en lugar de los mensajes rotatorios.
 4. [x] Privacidad (`legal.html`): una frase sobre el email opcional.
-5. [ ] Desplegar y comprobar en producción (una generación real con email).
+5. [x] Desplegar y comprobar en producción (commit af3689f, 9 nov): generación
+       real con email a hola@caricaturea.com en 44 s; el enlace `?v=` abre la
+       ficha con las 2 variantes. Falta que Maria confirme que el email llegó
+       (los logs de Render de este servicio no están en la cuenta conectada).
+6. [ ] Medir junto con la Fase E: ¿bajan los abandonos durante la espera?
 
 ## Fase D — seguimiento
 
