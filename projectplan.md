@@ -218,3 +218,15 @@ optimizar por ese evento.
 
 - [x] `producto.html`: `track('generate')` envía también `AddToCart` al píxel.
 - [ ] Comprobar en Meta que llegan eventos AddToCart con el tráfico nuevo.
+
+## Fase J — confianza junto al botón de pagar (11 nov)
+
+Por qué: la garantía de devolución (política ya publicada en «Envíos y devoluciones»)
+solo se veía al marcar «Necesito cambios» o abrir el desplegable. Bajo «Pedir» no
+había nada que tranquilizara, y es justo donde se pierde casi todo (60 caricaturas
+generadas, 2 inicios de pago, 0 ventas).
+
+- [x] Línea bajo «Pedir»: «Pago seguro · No imprimimos nada sin tu aprobación · Si no
+      te gusta, te devolvemos el dinero». Solo repite lo que ya promete la web.
+- Verificar: la línea aparece en producción bajo el botón (curl y móvil).
+- Medir: pedir/vista en /admin/embudo frente a antes.

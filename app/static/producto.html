@@ -107,6 +107,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
         <p class="hint">La marca de agua desaparece al pagar. ¿No te convence ninguna? Genera otras dos (te quedan <b id="left">1</b>).</p>
         <label class="notes" id="fmt-row">Formato y tamaño<select id="fmt"></select></label>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
+        <p class="hint" id="pay-trust">Pago seguro · No imprimimos nada sin tu aprobación · Si no te gusta, te devolvemos el dinero</p>
         <button class="btn btn-ghost" id="retry">Generar otra visualización</button>
       </div>
       <div class="wa-row" id="wa-row" hidden><a class="btn btn-wa" id="wa-order" target="_blank">Haz tu pedido por WhatsApp</a><a class="btn btn-wa-outline" id="wa-ask" target="_blank">Haz una pregunta por WhatsApp</a></div>
