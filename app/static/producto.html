@@ -84,7 +84,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
         <label class="drop" id="drop"><input type="file" id="photo" name="photo" accept="image/*" required><div class="drop-inner"><strong>+ Subir foto</strong><span>De frente, con luz, cara grande. 1-4 personas o tu mascota.</span></div><img id="thumb" alt="" hidden></label>
         <label class="notes">Texto en el cuadro (opcional)<input type="text" name="dedication" id="dedication" maxlength="60" placeholder="Ej.: ¡Felices 50, Carlos!"></label>
         <label class="notes">Escribe aquí tus deseos más importantes para el diseño; los incluiremos en la visualización.<textarea name="notes" id="notes" maxlength="300" rows="3" placeholder="Por ejemplo: cambiar el color de la moto, que lleve gafas, la camiseta azul."></textarea></label>
-        <label class="notes">Tu email (opcional): te enviamos tus visualizaciones por si cierras la página<input type="email" name="email" id="email" maxlength="200" autocomplete="email" placeholder="tu@email.com"></label>
+        <label class="notes">Tu email (opcional): te enviamos tus visualizaciones y, si no la pides, un único recordatorio con descuento antes de que se borre<input type="email" name="email" id="email" maxlength="200" autocomplete="email" placeholder="tu@email.com"></label>
         <button class="btn btn-primary wide" type="submit" id="go">Generar visualización</button>
       </form>
       <div id="loading" hidden><div class="spinner"></div><p id="loading-text">Dibujando tus 2 visualizaciones…</p>
@@ -174,7 +174,10 @@ function renderSizes(){
   $('#sizes').querySelectorAll('.size').forEach(b => b.addEventListener('click', () => { $('#sizes').querySelectorAll('.size').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setProduct(b.dataset.id); }));
   setProduct(list[0].id);
 }
-function setProduct(id){ product = D.products.find(p => p.id === id); $('#fmt').value = id; $('#price-now').textContent = eur(product.cents); $('#pay-price').textContent = eur(product.cents); }
+// descuento del correo de recordatorio (?d=…): el servidor lo comprueba al crear el pago
+const DTOK = new URLSearchParams(location.search).get('d') || '', DPCT = DTOK && Date.now() / 1000 < +DTOK.split('.')[0] ? 10 : 0;
+function setProduct(id){ product = D.products.find(p => p.id === id); $('#fmt').value = id; const c = Math.round(product.cents * (100 - DPCT) / 100);
+  $('#price-now').innerHTML = DPCT ? `<s>${eur(product.cents)}</s> ${eur(c)} (-${DPCT} % de tu recordatorio)` : eur(product.cents); $('#pay-price').textContent = eur(c); }
 load(); if(window.track) track('view_item',{item:SCENE_NAME});
 
 const photo = $('#photo'), thumb = $('#thumb'), drop = $('#drop'), form = $('#form'), loading = $('#loading'), errorBox = $('#error');
@@ -209,7 +212,7 @@ $('#preview').addEventListener('click', () => zoom($('#preview').src));
 $('#pay').addEventListener('click', async () => {
   $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
   try {
-    const r = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ job_id: jobId, product: product.id, changes: needChanges, wishes: needChanges ? $('#wishes').value : '' }) });
+    const r = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ job_id: jobId, product: product.id, d: DTOK, changes: needChanges, wishes: needChanges ? $('#wishes').value : '' }) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al iniciar el pago');
     location.href = data.url;
   } catch(err) { showError(err.message); $('#pay').disabled = false; }

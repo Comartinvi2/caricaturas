@@ -237,3 +237,21 @@ generadas, 2 inicios de pago, 0 ventas).
       Ves el diseño antes de pagar». Plazo real: 24-48 h + 2-4 días, hoy es cierto.
 - OJO: quitar «Llega a tiempo para Navidad» hacia el 15-dic.
 - Verificar: curl de la portada y de una ficha en producción.
+
+## Fase L — recordatorio con descuento a quien no pide su caricatura (11 nov, María: «móntalo»)
+
+Por qué: 60 caricaturas generadas, 2 inicios de pago, 0 ventas. El correo que ya había
+se envía al terminar de dibujar; a quien la vio y no la pidió no se le volvía a escribir.
+
+- [x] El email del formulario se guarda en el meta de cada variante (y en Supabase, que
+      sobrevive a reinicios); se borra con la caricatura a los 2 días.
+- [x] `reminder.py`: cada 30 min busca caricaturas sin pagar de hace 18-40 h con email, sin
+      recordatorio y de alguien que no haya pagado otra; una sola vez por persona y tanda.
+- [x] Correo «Tu caricatura se borra mañana: 10 % de descuento hoy» con sus visualizaciones
+      y un enlace `?v=…&d=<exp>.<firma>` (HMAC con ADMIN_TOKEN, 24 h, ligado al email).
+- [x] Ficha: con `d` válido muestra el precio tachado y el -10 %; el servidor vuelve a
+      comprobar la firma al crear el pago (`discount_pct`) y cobra el precio rebajado.
+- [x] Texto del formulario y política de privacidad: avisan del recordatorio.
+- [x] Tests: `tests/test_reminder.py` (5).
+- Verificar en producción: arranca sin errores y la ficha con un `d` falso cobra el precio normal.
+- NO verificado: el envío real (primer candidato ~20 h después de que alguien deje su email).

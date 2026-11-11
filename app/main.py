@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, funnel, imaging, scenes, storage
+from . import adengine, catalog, config, fulfilment, funnel, imaging, reminder, scenes, storage
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +49,7 @@ async def _startup():
     n = storage.cleanup()
     asyncio.create_task(catalog.ensure_thumbs())
     asyncio.create_task(funnel.loop())
+    asyncio.create_task(reminder.loop())
     log.info("arranque: demo=%s pagos=%s impresion=%s, %d trabajos caducados borrados",
              config.DEMO_MODE, config.PAYMENTS_ENABLED, config.PRINT_ENABLED, n)
 
@@ -742,12 +743,14 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
         variants.append({"job_id": job_id, "preview_url": f"/api/preview/{job_id}.jpg"})
     asyncio.get_running_loop().run_in_executor(None, storage.sb_cleanup)
     funnel.hit("generada")
-    # Email opcional: le mandamos sus visualizaciones por si cierra la página durante la espera.
-    # Solo se usa para este envío; no se guarda.
+    # Email opcional: le mandamos sus visualizaciones por si cierra la página durante la espera y,
+    # si no la pide, un único recordatorio ~20 h después (reminder.py). Se borra con la caricatura.
     email = email.strip()[:200]
     if re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+", email):
         from . import mail
         funnel.hit("email")
+        for v in variants:
+            m = storage.update_meta(v["job_id"], email=email); storage._sb_save(v["job_id"], m)
         title = (prod or {}).get("title") or "caricatura"
         link = f"{config.BASE_URL}/p/{scene_data['id']}?v=" + ",".join(v["job_id"] for v in variants)
         t = asyncio.create_task(mail.variants_ready(email, title, link, [config.BASE_URL + v["preview_url"] for v in variants]))
@@ -781,7 +784,7 @@ async def api_checkout(request: Request):
     changes = bool(body.get("changes"))  # «Necesito cambios»: no se entrega ni imprime hasta aprobar
     storage.update_meta(job_id, changes=changes, wishes=" ".join(str(body.get("wishes") or "").split())[:500] if changes else "")
     try:
-        url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies))
+        url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies), pct=reminder.discount_pct(meta, body.get("d", "")))
     except Exception as e:  # noqa: BLE001
         log.exception("checkout falló")
         raise HTTPException(502, f"No se ha podido iniciar el pago: {str(e)[:120]}")

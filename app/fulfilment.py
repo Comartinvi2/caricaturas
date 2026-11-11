@@ -40,7 +40,7 @@ def stripe_client():
     return stripe
 
 
-def create_checkout(job_id: str, product: str, clicks: dict | None = None) -> str:
+def create_checkout(job_id: str, product: str, clicks: dict | None = None, pct: int = 0) -> str:
     """Devuelve la URL de pago. En demo (sin Stripe) devuelve la página de éxito directamente."""
     p = PRODUCTS[product]
     storage.update_meta(job_id, product=product, status="checkout")
@@ -55,14 +55,14 @@ def create_checkout(job_id: str, product: str, clicks: dict | None = None) -> st
         line_items=[{
             "price_data": {
                 "currency": config.CURRENCY,
-                "unit_amount": p["cents"],
-                "product_data": {"name": p["name"], "images": [f"{config.BASE_URL}/api/preview/{job_id}.jpg"]},
+                "unit_amount": round(p["cents"] * (100 - pct) / 100),
+                "product_data": {"name": p["name"] + (f" · -{pct} % recordatorio" if pct else ""), "images": [f"{config.BASE_URL}/api/preview/{job_id}.jpg"]},
             },
             "quantity": 1,
         }],
         success_url=f"{config.BASE_URL}/gracias?job={job_id}&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{config.BASE_URL}/?job={job_id}",
-        metadata={"job_id": job_id, "product": product, **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
+        metadata={"job_id": job_id, "product": product, **({"descuento": f"recordatorio {pct}%"} if pct else {}), **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
         client_reference_id=job_id,
         locale="es",
     )

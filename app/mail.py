@@ -116,6 +116,17 @@ async def variants_ready(to: str, title: str, link: str, previews: list[str]):
                       button=("Ver mis visualizaciones", link))
 
 
+async def reminder(to: str, title: str, link: str, previews: list[str], pct: int):
+    imgs = "".join(f'<img src="{html.escape(u, quote=True)}" alt="Opción {i}" width="250" style="width:48%;max-width:250px;margin:0 1% 8px 0;border:1px solid #eee">'
+                   for i, u in enumerate(previews, 1))
+    return await send(to, f"Tu caricatura se borra mañana: {pct} % de descuento hoy",
+                      ["¡Hola!", f"Ayer creaste tu caricatura «{html.escape(title)}» y aún la tenemos guardada:", imgs,
+                       f"Si la pides en las próximas 24 horas, te hacemos un <b>{pct} % de descuento</b> sobre el precio de la web, ya aplicado al entrar con este botón.",
+                       "Recuerda: no imprimimos nada sin tu aprobación, y si no te gusta te devolvemos el dinero.",
+                       "Pasado mañana se borra para siempre, junto con tu foto."],
+                      button=(f"Ver mi caricatura con el {pct} %", link))
+
+
 async def order_shipped(o: dict, tracking_url: str | None, carrier: str | None):
     p = ["¡Tu caricatura ya ha salido de la imprenta y va de camino!" + (f" Lo lleva {html.escape(carrier)}." if carrier else ""),
          "Suele llegar en 2-5 días laborables."]
