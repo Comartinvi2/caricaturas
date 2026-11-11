@@ -207,3 +207,14 @@ que el freno no es el dibujo.
 - Verificado en local (demo, 375 px): el selector cambia precio y tarjetas en ambos
   sentidos, zoom, botón visible en móvil y oculto en escritorio, salto al resultado.
 - [ ] Medir en /admin/embudo con Meta reactivado el 11 nov: generar→vista→pedir→venta.
+
+## Fase I — señal para Meta: «AddToCart» al generar (11 nov)
+
+Meta optimizaba por «inicio de pago» (2 eventos) cuando el píxel ya registra 60
+«Lead» (caricatura generada) en 113 visitas medidas. «Lead» no vale como evento de
+optimización en campañas de ventas, así que al generar se envía además «AddToCart»
+(solo con cookies aceptadas, como el resto). En AdEngine la campaña pasa a
+optimizar por ese evento.
+
+- [x] `producto.html`: `track('generate')` envía también `AddToCart` al píxel.
+- [ ] Comprobar en Meta que llegan eventos AddToCart con el tráfico nuevo.
