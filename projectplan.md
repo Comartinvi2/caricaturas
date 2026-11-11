@@ -189,3 +189,21 @@ paso. Solo totales por día: ni IP, ni identificadores, ni nada en el móvil.
 - [x] `/admin/embudo?token=…`: tabla de los últimos 30 días, totales y % de
       cada paso respecto al anterior.
 - [ ] Probar en local y en producción (los pasos suben al navegar).
+
+## Fase H — del resultado al pago en móvil (11 nov, María: «sigue sin pedirme permiso»)
+
+Por qué: en las grabaciones de Clarity (5-9 nov, móvil desde anuncios) 40 de 118
+sesiones enviaron la foto y ninguna pagó. Tras ver el resultado tocaban la imagen
+y los precios sin respuesta; el selector de formato queda ~1.300 px por encima del
+botón «Pedir» y, al volver desde el email, la página abría arriba del todo.
+Prueba real en producción el 11 nov: genera en 48 s y el parecido es bueno, así
+que el freno no es el dibujo.
+
+- [x] Selector «Formato y tamaño» (todos los productos con precio) justo encima de
+      «Pedir», sincronizado con las tarjetas de tipo y tamaño de arriba.
+- [x] Al cargar con visualizaciones guardadas (o con ?v= del email), ir directo a ellas.
+- [x] Tocar la imagen principal la amplía (antes solo la del resultado).
+- [x] Solo móvil: botón «Mira tu caricatura gratis: sube tu foto ↓» bajo las miniaturas.
+- Verificado en local (demo, 375 px): el selector cambia precio y tarjetas en ambos
+  sentidos, zoom, botón visible en móvil y oculto en escritorio, salto al resultado.
+- [ ] Medir en /admin/embudo con Meta reactivado el 11 nov: generar→vista→pedir→venta.

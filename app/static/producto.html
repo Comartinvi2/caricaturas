@@ -6,6 +6,7 @@
 <title>{{PAGE_TITLE}}</title>
 <meta name="description" content="{{SCENE_DESC_ATTR}} Caricatura personalizada a partir de tu foto, en lienzo, póster o archivo. Ves el diseño antes de pagar. Envío gratis.">
 <link rel="stylesheet" href="/static/style.css?v=2">
+<style>.try-top{display:none}@media (max-width:820px){.try-top{display:block;margin:6px 0 4px}}#main-img{cursor:zoom-in}.notes select{display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}</style>
 <!-- analítica (se activa solo si hay IDs en Render) -->
 <script>
 window.__IDS = {ga4: "{{GA4_ID}}", gads: "{{GADS_ID}}", gads_label: "{{GADS_LABEL}}", meta: "{{META_PIXEL_ID}}", clarity: "{{CLARITY_ID}}", pinterest: "{{PINTEREST_TAG_ID}}"};
@@ -59,6 +60,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
     <div class="delivery-banner">Haz tu pedido hoy y recíbelo antes del <b id="delivery-date"></b>.<br><small>* si apruebas el diseño hoy</small></div>
     <div class="product-img"><img id="main-img" src="{{MAIN_IMG}}" srcset="{{MAIN_IMG_T}} 480w, {{MAIN_IMG_M}} 800w, {{MAIN_IMG}} 1160w" sizes="(max-width: 700px) and (min-resolution: 2.5dppx) 266px, (max-width: 700px) 92vw, 512px" fetchpriority="high" alt="{{SCENE_NAME}}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',textContent:'{{SCENE_NAME}}'}))"></div>
     <div class="thumbs" id="thumbs"></div>
+    <a class="btn btn-primary wide try-top" href="#form">Mira tu caricatura gratis: sube tu foto ↓</a>
     <div class="ship-info"><div><b>Envío gratuito por mensajería</b><br>Entrega en 24-48 h tras la aprobación del diseño.</div><div><b>Diseño para tu aprobación</b><br>Lo ves antes de pagar; nada se imprime sin tu OK.</div></div>
   </div>
 
@@ -103,6 +105,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
           </div>
         </div>
         <p class="hint">La marca de agua desaparece al pagar. ¿No te convence ninguna? Genera otras dos (te quedan <b id="left">1</b>).</p>
+        <label class="notes" id="fmt-row">Formato y tamaño<select id="fmt"></select></label>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
         <button class="btn btn-ghost" id="retry">Generar otra visualización</button>
       </div>
@@ -159,6 +162,8 @@ async function load(){
   $('#types').innerHTML = ['canvas','poster','digital'].map(t => `<label class="type ${t===type?'on':''}" data-t="${t}"><b>${TYPE_LABEL[t]}</b><small>desde ${eur(minOf(t))}</small></label>`).join('');
   $('#types').addEventListener('click', e => { const l = e.target.closest('.type'); if(!l) return; type = l.dataset.t; document.querySelectorAll('.type').forEach(x=>x.classList.toggle('on', x===l)); renderSizes(); });
   const base = minOf('canvas'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
+  $('#fmt').innerHTML = D.products.map(p => `<option value="${p.id}">${p.type === 'digital' ? TYPE_LABEL.digital : TYPE_LABEL[p.type] + ' ' + p.size} · ${eur(p.cents)}</option>`).join('');
+  $('#fmt').addEventListener('change', () => { const p = D.products.find(x => x.id === $('#fmt').value); if (!p) return; type = p.type; document.querySelectorAll('.type').forEach(x => x.classList.toggle('on', x.dataset.t === type)); renderSizes(); $('#sizes').querySelectorAll('.size').forEach(x => x.classList.toggle('on', x.dataset.id === p.id)); setProduct(p.id); });
   renderSizes(); const me = D.scenes.find(x=>x.id===SCENE); if (me && me.images && me.images.length) { $('#thumbs').innerHTML = me.images.map((u,i)=>`<img src="${u.includes('/object/public/caricaturas/') ? u.replace(/\.jpg$/,'-t.webp') : u}" data-full="${u}" data-i="${i}" class="${i===0?'on':''}" loading="lazy" onerror="this.onerror=null;this.src=this.dataset.full">`).join(''); $('#thumbs').querySelectorAll('img').forEach(im=>im.addEventListener('click',()=>{ setMain(im.dataset.full); $('#thumbs').querySelectorAll('img').forEach(x=>x.classList.remove('on')); im.classList.add('on'); })); }
   if (D.whatsapp) { $('#wa-row').hidden = false; $('#wa-order').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, quiero pedir la caricatura "'+SCENE_NAME+'"')}`; $('#wa-ask').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, tengo una pregunta sobre "'+SCENE_NAME+'"')}`; }
 }
@@ -168,7 +173,7 @@ function renderSizes(){
   $('#sizes').querySelectorAll('.size').forEach(b => b.addEventListener('click', () => { $('#sizes').querySelectorAll('.size').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setProduct(b.dataset.id); }));
   setProduct(list[0].id);
 }
-function setProduct(id){ product = D.products.find(p => p.id === id); $('#price-now').textContent = eur(product.cents); $('#pay-price').textContent = eur(product.cents); }
+function setProduct(id){ product = D.products.find(p => p.id === id); $('#fmt').value = id; $('#price-now').textContent = eur(product.cents); $('#pay-price').textContent = eur(product.cents); }
 load(); if(window.track) track('view_item',{item:SCENE_NAME});
 
 const photo = $('#photo'), thumb = $('#thumb'), drop = $('#drop'), form = $('#form'), loading = $('#loading'), errorBox = $('#error');
@@ -192,11 +197,14 @@ form.addEventListener('submit', async e => {
   finally { clearInterval(t); loading.hidden = true; }
 });
 if (variants.length) { jobId = variants[variants.length - 1].id; $('#preview-box').hidden = false; renderVariants(); selectVariant(jobId);
-  $('#left').textContent = Math.max(0, 2 - tries); }
+  $('#left').textContent = Math.max(0, 2 - tries);
+  window.addEventListener('load', () => setTimeout(() => $('#preview-box').scrollIntoView({behavior:'smooth', block:'start'}), 300)); }
 $('#retry').addEventListener('click', () => { form.hidden = false; form.scrollIntoView({behavior:'smooth', block:'center'}); });
 $('#need-changes').addEventListener('change', () => setChanges(true));
-$('#preview').addEventListener('click', () => { const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
-  o.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain">'; o.firstChild.src = $('#preview').src; o.onclick = () => o.remove(); document.body.appendChild(o); });
+function zoom(src){ const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  o.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain">'; o.firstChild.src = src; o.onclick = () => o.remove(); document.body.appendChild(o); }
+$('#preview').addEventListener('click', () => zoom($('#preview').src));
+{ const m = $('#main-img'); if (m) m.addEventListener('click', () => zoom(m.currentSrc || m.src)); }
 $('#pay').addEventListener('click', async () => {
   $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
   try {
