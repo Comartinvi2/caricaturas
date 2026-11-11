@@ -230,3 +230,10 @@ generadas, 2 inicios de pago, 0 ventas).
       te gusta, te devolvemos el dinero». Solo repite lo que ya promete la web.
 - Verificar: la línea aparece en producción bajo el botón (curl y móvil).
 - Medir: pedir/vista en /admin/embudo frente a antes.
+
+## Fase K — Navidad (11 nov)
+
+- [x] Barra superior (portada y ficha): «🎄 Llega a tiempo para Navidad · -X % · Envío gratis ·
+      Ves el diseño antes de pagar». Plazo real: 24-48 h + 2-4 días, hoy es cierto.
+- OJO: quitar «Llega a tiempo para Navidad» hacia el 15-dic.
+- Verificar: curl de la portada y de una ficha en producción.
