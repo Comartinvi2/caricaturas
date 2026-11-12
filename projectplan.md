@@ -170,6 +170,11 @@ Mismo día (decisión de Maria): el lienzo pasa a ser la opción marcada por
 defecto y la primera; «desde» en portada y fichas = lienzo 20x30. El archivo
 queda el último, como extra.
 
+## Precio del archivo: 9,90 € (decisión de Maria, 12 nov)
+
+- [x] Sube de 2,99 € a 9,90 € (`app/config.py`). Motivo: a 2,99 € nadie compró en ~60 caricaturas generadas y ese precio no cubre el anuncio; en Bebés se vendió un archivo a 19,90 €.
+- Verificación: `tests/test_precios.py` y precio visible en la ficha en producción.
+
 ## Fase D — seguimiento
 
 - ~10 nov: revisar en adengine si el % de clics de Meta que cargan sube del 57,8 %.
