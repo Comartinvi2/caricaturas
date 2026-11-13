@@ -260,3 +260,16 @@ se envía al terminar de dibujar; a quien la vio y no la pidió no se le volvía
 - [x] Tests: `tests/test_reminder.py` (5).
 - Verificar en producción: arranca sin errores y la ficha con un `d` falso cobra el precio normal.
 - NO verificado: el envío real (primer candidato ~20 h después de que alguien deje su email).
+
+## Fase M — Archivo para imprimir con más protagonismo (13 nov, María)
+
+Por qué: Clarity muestra gente que genera su caricatura, la amplía y se va sin pedir; la vista
+ampliada no tenía salida. María pide dar el máximo protagonismo al archivo de 9,90 €.
+Archivo real: 1152×1536 px → los textos prometen «hasta 20x30 cm», no más.
+
+- [x] Vista ampliada con «✕ Cerrar» y botón «Pedir · precio» (solo con caricatura generada).
+- [x] Bajo las visualizaciones, bloque «Archivo de calidad para imprimir · 9,90 €» con compra directa.
+- [x] «Solo archivo (sin impresión)» → «Archivo de calidad para imprimir» + ventajas al elegirlo.
+- Verificado en local (demo, móvil 375 px): vista ampliada con Cerrar/Pedir; el botón del
+  archivo manda `product: digital` a /api/checkout a 9,90 €. Tests 6/6.
+- Medir: inicios de pago y ventas digitales en /admin/embudo frente a antes del 13-nov.

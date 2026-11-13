@@ -210,3 +210,5 @@ footer .newsletter input{flex:1;background:#333;border:1px solid #555;color:#fff
 .variants{margin:14px 0}.var-title{text-align:center;margin:6px 0}.var-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
 .var{border:2px solid var(--line);border-radius:12px;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;background:#fff}
 .var img{width:100%;border-radius:6px}.var span{font-size:.9rem}.var.on{border-color:#2e8b57;background:#eef7f1}
+.digi-box{border:2px solid #1a7a4a;background:#eef7f1;border-radius:12px;padding:14px;margin:14px 0;text-align:center}
+.digi-box b{display:block;font-size:1.05rem}.digi-box small{display:block;color:var(--muted);margin:6px 0}

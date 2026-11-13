@@ -74,6 +74,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
       <div class="types" id="types"></div>
       <h3>Selecciona el tamaño</h3>
       <div class="sizes" id="sizes"></div>
+      <p class="hint" id="digi-note" hidden>Sin marca de agua · Descarga inmediata tras el pago · Listo para imprimir hasta 20x30 cm · Tuyo para siempre</p>
       <p class="chosen-price">Precio: <b id="price-now"></b> · envío gratis</p>
 
       <h3 class="upload-title">ENVIAR FOTOS</h3>
@@ -105,6 +106,10 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
           </div>
         </div>
         <p class="hint">La marca de agua desaparece al pagar. ¿No te convence ninguna? Genera otras dos (te quedan <b id="left">1</b>).</p>
+        <div class="digi-box"><b>Archivo de calidad para imprimir · <span id="digi-price"></span></b>
+          <small>Tu caricatura sin marca de agua · Descarga inmediata tras el pago · Lista para imprimir hasta 20x30 cm · Tuya para siempre</small>
+          <button class="btn btn-primary wide" type="button" id="pay-digital">Descargar mi caricatura · <span id="digi-price-btn"></span></button>
+          <small>¿La prefieres ya impresa? Elige lienzo o póster aquí abajo.</small></div>
         <label class="notes" id="fmt-row">Formato y tamaño<select id="fmt"></select></label>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
         <p class="hint" id="pay-trust">Pago seguro · No imprimimos nada sin tu aprobación · Si no te gusta, te devolvemos el dinero</p>
@@ -151,7 +156,7 @@ function renderVariants(){
     <span><input type="radio" name="variant" ${v.id === jobId ? 'checked' : ''}> Elijo la opción ${i+1}</span></label>`).join('');
   document.querySelectorAll('#var-grid .var').forEach(el => el.onclick = () => { needChanges = false; $('#changes-box').hidden = true; $('#need-changes').checked = false; selectVariant(el.dataset.id); });
 }
-const TYPE_LABEL = {digital: 'Solo archivo (sin impresión)', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
+const TYPE_LABEL = {digital: 'Archivo de calidad para imprimir', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
 
 (function(){ const d = new Date(); let add = 6; while(add>0){ d.setDate(d.getDate()+1); if(d.getDay()!==0 && d.getDay()!==6) add--; }
   $('#delivery-date').textContent = d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'}); })();
@@ -165,6 +170,7 @@ async function load(){
   const base = minOf('canvas'); $('#price-from').textContent = eur(base); $('#price-before').textContent = eur(Math.round(base/(1-D.discount/100)));
   $('#fmt').innerHTML = D.products.map(p => `<option value="${p.id}">${p.type === 'digital' ? TYPE_LABEL.digital : TYPE_LABEL[p.type] + ' ' + p.size} · ${eur(p.cents)}</option>`).join('');
   $('#fmt').addEventListener('change', () => { const p = D.products.find(x => x.id === $('#fmt').value); if (!p) return; type = p.type; document.querySelectorAll('.type').forEach(x => x.classList.toggle('on', x.dataset.t === type)); renderSizes(); $('#sizes').querySelectorAll('.size').forEach(x => x.classList.toggle('on', x.dataset.id === p.id)); setProduct(p.id); });
+  { const dc = eur(Math.round(D.products.find(p => p.id === 'digital').cents * (100 - DPCT) / 100)); $('#digi-price').textContent = dc; $('#digi-price-btn').textContent = dc; }
   renderSizes(); const me = D.scenes.find(x=>x.id===SCENE); if (me && me.images && me.images.length) { $('#thumbs').innerHTML = me.images.map((u,i)=>`<img src="${u.includes('/object/public/caricaturas/') ? u.replace(/\.jpg$/,'-t.webp') : u}" data-full="${u}" data-i="${i}" class="${i===0?'on':''}" loading="lazy" onerror="this.onerror=null;this.src=this.dataset.full">`).join(''); $('#thumbs').querySelectorAll('img').forEach(im=>im.addEventListener('click',()=>{ setMain(im.dataset.full); $('#thumbs').querySelectorAll('img').forEach(x=>x.classList.remove('on')); im.classList.add('on'); })); }
   if (D.whatsapp) { $('#wa-row').hidden = false; $('#wa-order').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, quiero pedir la caricatura "'+SCENE_NAME+'"')}`; $('#wa-ask').href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent('Hola, tengo una pregunta sobre "'+SCENE_NAME+'"')}`; }
 }
@@ -172,6 +178,7 @@ function renderSizes(){
   const list = D.products.filter(p => p.type === type);
   $('#sizes').innerHTML = list.map((p,i) => `<button type="button" class="size ${i===0?'on':''}" data-id="${p.id}">${p.size}</button>`).join('');
   $('#sizes').querySelectorAll('.size').forEach(b => b.addEventListener('click', () => { $('#sizes').querySelectorAll('.size').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setProduct(b.dataset.id); }));
+  $('#digi-note').hidden = type !== 'digital';
   setProduct(list[0].id);
 }
 // descuento del correo de recordatorio (?d=…): el servidor lo comprueba al crear el pago
@@ -205,10 +212,15 @@ if (variants.length) { jobId = variants[variants.length - 1].id; $('#preview-box
   window.addEventListener('load', () => setTimeout(() => $('#preview-box').scrollIntoView({behavior:'smooth', block:'start'}), 300)); }
 $('#retry').addEventListener('click', () => { form.hidden = false; form.scrollIntoView({behavior:'smooth', block:'center'}); });
 $('#need-changes').addEventListener('change', () => setChanges(true));
-function zoom(src){ const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
-  o.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain">'; o.firstChild.src = src; o.onclick = () => o.remove(); document.body.appendChild(o); }
+function zoom(src){ const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out';
+  o.innerHTML = '<img style="max-width:100%;min-height:0;flex:1;object-fit:contain"><button type="button" aria-label="Cerrar" style="position:absolute;top:10px;right:10px;border:0;border-radius:999px;padding:8px 14px;font:inherit;background:#fff;cursor:pointer">✕ Cerrar</button>'; o.firstChild.src = src; o.onclick = () => o.remove();
+  // con la caricatura ya generada, se puede pedir sin salir de la vista ampliada
+  if (jobId && product) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-primary'; b.style.cssText = 'margin:10px;width:calc(100% - 20px);max-width:420px'; b.textContent = 'Pedir · ' + $('#pay-price').textContent;
+    b.onclick = e => { e.stopPropagation(); o.remove(); $('#pay').click(); }; o.appendChild(b); }
+  document.body.appendChild(o); }
 $('#preview').addEventListener('click', () => zoom($('#preview').src));
 { const m = $('#main-img'); if (m) m.addEventListener('click', () => zoom(m.currentSrc || m.src)); }
+$('#pay-digital').addEventListener('click', () => { $('#fmt').value = 'digital'; $('#fmt').dispatchEvent(new Event('change')); $('#pay').click(); });
 $('#pay').addEventListener('click', async () => {
   $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
   try {
