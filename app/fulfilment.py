@@ -65,9 +65,10 @@ def create_checkout(job_id: str, product: str, clicks: dict | None = None, pct: 
         metadata={"job_id": job_id, "product": product, **({"descuento": f"recordatorio {pct}%"} if pct else {}), **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
         client_reference_id=job_id,
         locale="es",
+        adaptive_pricing={"enabled": True},  # Stripe enseña el precio en la moneda del cliente (dólares, pesos…); cobramos en euros
     )
     if p["ships"]:
-        params["shipping_address_collection"] = {"allowed_countries": ["ES", "PT", "FR", "IT", "DE", "MX", "US"]}
+        params["shipping_address_collection"] = {"allowed_countries": ["ES", "PT", "FR", "IT", "DE", "MX", "US", "PR"]}
         params["phone_number_collection"] = {"enabled": True}
     session = stripe.checkout.Session.create(**params)
     storage.update_meta(job_id, stripe_session=session.id)
