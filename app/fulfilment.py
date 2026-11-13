@@ -7,7 +7,7 @@ from . import config, mail, storage, funnel
 
 P = config.PRICES_CENTS
 PRODUCTS = {
-    "digital": {"name": "Caricatura en archivo digital (alta resolución)", "cents": P["digital"], "ships": False, "type": "digital", "size": "Archivo"},
+    "digital": {"name": "Caricatura en alta calidad para imprimir (descarga)", "cents": P["digital"], "ships": False, "type": "digital", "size": "Descarga"},
     "canvas_20x30": {"name": "Caricatura en lienzo 20x30 cm", "cents": P["canvas_20x30"], "ships": True, "mm": (200, 300), "bleed": 49, "type": "canvas", "size": "20x30 cm"},
     "canvas_30x40": {"name": "Caricatura en lienzo 30x40 cm", "cents": P["canvas_30x40"], "ships": True, "mm": (300, 400), "bleed": 49, "type": "canvas", "size": "30x40 cm"},
     "canvas_40x50": {"name": "Caricatura en lienzo 40x50 cm", "cents": P["canvas_40x50"], "ships": True, "mm": (400, 500), "bleed": 49, "type": "canvas", "size": "40x50 cm"},
