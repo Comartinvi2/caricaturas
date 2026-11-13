@@ -784,7 +784,7 @@ async def api_checkout(request: Request):
     changes = bool(body.get("changes"))  # «Necesito cambios»: no se entrega ni imprime hasta aprobar
     storage.update_meta(job_id, changes=changes, wishes=" ".join(str(body.get("wishes") or "").split())[:500] if changes else "")
     try:
-        url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies), pct=reminder.discount_pct(meta, body.get("d", "")))
+        url = fulfilment.create_checkout(job_id, product, clicks=adengine.clicks(request.cookies), pct=reminder.discount_pct(meta, body.get("d", "")), country=request.headers.get("cf-ipcountry", ""))
     except Exception as e:  # noqa: BLE001
         log.exception("checkout falló")
         raise HTTPException(502, f"No se ha podido iniciar el pago: {str(e)[:120]}")
