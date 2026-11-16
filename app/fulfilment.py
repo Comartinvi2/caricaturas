@@ -3,7 +3,7 @@ import time
 
 import httpx
 
-from . import config, mail, storage, funnel
+from . import config, mail, market, storage, funnel
 
 P = config.PRICES_CENTS
 PRODUCTS = {
@@ -43,6 +43,8 @@ def stripe_client():
 def create_checkout(job_id: str, product: str, clicks: dict | None = None, pct: int = 0, country: str = "") -> str:
     """Devuelve la URL de pago. En demo (sin Stripe) devuelve la página de éxito directamente."""
     p = PRODUCTS[product]
+    if market.market(country) == "digital" and p["ships"]:
+        raise ValueError("A tu país no enviamos impresas: elige la caricatura para imprimir.")
     storage.update_meta(job_id, product=product, status="checkout")
     storage.persist(job_id)
     if not config.PAYMENTS_ENABLED:

@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, reminder, scenes, storage
+from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, market, reminder, scenes, storage
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
@@ -184,6 +184,7 @@ def _page(name: str, **extra: str) -> HTMLResponse:
         "INTRO": "Tu idea. Tu foto. Un regalo personal. Elige la escena, sube la foto y mira tu caricatura antes de pagar.",
         "HEAD_EXTRA": _seo_head("/", f"{config.BRAND_NAME} · Caricatura personalizada desde una foto, en lienzo", HOME_DESC),
         "META_DESC": HOME_DESC, "SSR_NAV": "", "SSR_GRID": "", "SCENE_DESC_ATTR": "",
+        **market.texts(""),  # España; la ficha de producto lo cambia según el país de la visita
     }
     repl.update(extra)
     for k, v in repl.items():
@@ -268,7 +269,7 @@ async def product_page(request: Request, slug: str):
     _img = s.get("image_url") or f"/api/example/{s['slug']}.jpg"
     _img_t = _img[:-4] + "-t.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
     _img_m = _img[:-4] + "-m.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
-    return _page("producto.html", MAIN_IMG=_img, MAIN_IMG_T=_img_t, MAIN_IMG_M=_img_m, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
+    return _page("producto.html", **market.texts(request.headers.get("cf-ipcountry")), MAIN_IMG=_img, MAIN_IMG_T=_img_t, MAIN_IMG_M=_img_m, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
 
 
 @app.get("/api/scenes")
