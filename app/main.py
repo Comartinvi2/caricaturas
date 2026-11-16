@@ -706,26 +706,52 @@ async def api_config():
     }
 
 
-FREE_TRIES = 2          # pruebas gratis por diseño y persona (IP) cada 24 h (cada una da 2 variantes)
+FREE_TRIES = 2          # pruebas gratis por diseño y persona (IP) cada 24 h
 FREE_TRIES_DAY = 2      # tope total por IP y día: 2 pruebas gratis
+VARIANTS = int(config.env("PREVIEW_VARIANTS", "1"))  # imágenes por prueba (cada una es una llamada a OpenAI)
 _TRIES: dict[str, list[tuple[float, str]]] = {}
 _BG: set = set()  # tareas en segundo plano (emails), para que no se pierdan antes de terminar
 
 
 def _client_ip(request: Request) -> str:
-    return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+    # Cloudflare pone la IP real en CF-Connecting-IP (X-Forwarded-For lo puede inventar el visitante)
+    return (request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+
+
+async def _tries(ip: str, now: float) -> list[tuple[float, str]]:
+    """Pruebas de las últimas 24 h de esta IP. Se guardan en Supabase (car_tries) para que no se
+    reinicien con cada despliegue; si Supabase falla, vale la copia en memoria."""
+    mem = [h for h in _TRIES.get(ip, []) if now - h[0] < 86400]
+    if catalog.ENABLED:
+        try:
+            from datetime import datetime, timezone
+            since = datetime.fromtimestamp(now - 86400, timezone.utc).isoformat()
+            rows = await catalog._get("car_tries", {"select": "scene,at", "ip": f"eq.{ip}", "at": f"gte.{since}", "limit": "50"})
+            db = [(datetime.fromisoformat(r["at"]).timestamp(), r["scene"]) for r in rows]
+            return db if len(db) >= len(mem) else mem
+        except Exception:  # noqa: BLE001
+            pass
+    return mem
+
+
+async def _add_try(ip: str, now: float, scene: str):
+    _TRIES.setdefault(ip, []).append((now, scene))
+    if catalog.ENABLED:
+        try:
+            await catalog._upsert("car_tries", [{"ip": ip, "scene": scene}])
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @app.post("/api/generate")
 async def api_generate(request: Request, photo: UploadFile = File(...), notes: str = Form(""), scene: str = Form("clasica"), dedication: str = Form(""), email: str = Form("")):
     import time as _t
     ip = _client_ip(request); now = _t.time()
-    hist = [h for h in _TRIES.get(ip, []) if now - h[0] < 86400]
+    hist = await _tries(ip, now)
     if sum(1 for h in hist if h[1] == scene) >= FREE_TRIES:
         raise HTTPException(429, "Has usado las 2 pruebas gratuitas de este diseño. Si quieres otra, escríbenos a hola@caricaturea.com.")
     if len(hist) >= FREE_TRIES_DAY:
         raise HTTPException(429, "Has usado tus 2 pruebas gratuitas. Elige una de tus opciones o escríbenos a hola@caricaturea.com y te ayudamos.")
-    hist.append((now, scene)); _TRIES[ip] = hist
     funnel.hit("generar")
     prod = await catalog.get_product(scene)
     if prod:
@@ -745,8 +771,9 @@ async def api_generate(request: Request, photo: UploadFile = File(...), notes: s
     if min(img.size) < 400:
         raise HTTPException(400, "La foto es muy pequeña: necesitamos al menos 400 px de lado para ver bien la cara.")
     try:
+        await _add_try(ip, now, scene)  # cuenta como prueba solo si la foto es válida y se llega a generar
         async with _sem:
-            results = await imaging.generate_variants(img, notes, scene_data["prompt"], dedication, n=2)
+            results = await imaging.generate_variants(img, notes, scene_data["prompt"], dedication, n=VARIANTS)
     except Exception:  # noqa: BLE001
         log.exception("generación falló")
         raise HTTPException(502, "La caricatura no ha salido. No se te ha cobrado nada; prueba otra vez con otra foto.")

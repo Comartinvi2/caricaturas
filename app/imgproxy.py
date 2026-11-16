@@ -1,14 +1,19 @@
 """Imágenes públicas servidas desde caricaturea.com/img/... en vez de directamente desde Supabase.
 
-Cloudflare (delante de la web) guarda en caché las .jpg/.webp/.png, así que cada imagen sale de Supabase
-una sola vez por nodo de Cloudflare y no en cada visita: el tráfico (egress) de Supabase baja casi a cero.
+Cada imagen se guarda en el disco del servidor la primera vez (y se refresca como mucho una vez por
+semana), así que sale de Supabase una sola vez y no en cada visita: el tráfico (egress) de Supabase
+baja casi a cero. Si Supabase falla, se sirve la copia guardada.
 
 - Ruta GET /img/{bucket}/{ruta}: descarga la imagen pública de Supabase y la devuelve con caché larga.
 - Middleware: en las respuestas HTML/JSON/XML/JS cambia las URLs públicas de Supabase por /img/...
 """
+import hashlib
+import os
+import time
+
 import httpx
 from fastapi import HTTPException
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
 from . import config
 
@@ -19,6 +24,10 @@ BUCKETS = {"caricaturas", "fe"}  # buckets públicos que se pueden servir por aq
 CACHE = "public, max-age=604800, s-maxage=2592000"  # navegador 7 días, Cloudflare 30 días
 REWRITE_TYPES = ("text/html", "application/json", "application/xml", "text/xml", "application/javascript", "text/javascript")
 MAX_BYTES = 15 * 1024 * 1024
+CACHE_DIR = config.DATA_DIR / "imgcache"   # caché en el disco de Render: cada imagen sale de Supabase una vez
+CACHE_MAX_BYTES = int(config.env("IMG_CACHE_MB", "1500")) * 1024 * 1024
+CACHE_TTL = 7 * 86400                       # se vuelve a pedir a Supabase como mucho una vez por semana
+_last_prune = 0.0
 
 _client: httpx.AsyncClient | None = None
 
@@ -35,19 +44,60 @@ def url(u: str) -> str:
     return u.replace(SB_PUBLIC, IMG_BASE) if (u and SB_PUBLIC) else u
 
 
+def _cache_file(path: str):
+    h = hashlib.sha1(path.encode()).hexdigest()
+    ext = os.path.splitext(path)[1][:6] or ".bin"
+    return CACHE_DIR / h[:2] / f"{h}{ext}"
+
+
+def _prune():
+    """Si la caché pasa del tope, borra los archivos menos usados."""
+    global _last_prune
+    if time.time() - _last_prune < 600:
+        return
+    _last_prune = time.time()
+    try:
+        files = [(f.stat().st_atime, f.stat().st_size, f) for f in CACHE_DIR.rglob("*") if f.is_file()]
+        total = sum(x[1] for x in files)
+        for _, size, f in sorted(files):
+            if total <= CACHE_MAX_BYTES * 0.8:
+                break
+            f.unlink(missing_ok=True); total -= size
+    except OSError:
+        pass
+
+
+_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".json": "application/json"}
+
+
 async def serve(path: str):
     bucket = path.split("/", 1)[0]
     if bucket not in BUCKETS or ".." in path:
         raise HTTPException(404)
+    f = _cache_file(path)
+    ct = _TYPES.get(f.suffix.lower(), "application/octet-stream")
+    try:
+        if f.exists() and time.time() - f.stat().st_mtime < CACHE_TTL:
+            return FileResponse(f, media_type=ct, headers={"Cache-Control": CACHE})
+    except OSError:
+        pass
     try:
         r = await _c().get(SB_PUBLIC + path)
-    except httpx.HTTPError:
-        raise HTTPException(502)
-    if r.status_code != 200 or len(r.content) > MAX_BYTES:
-        # sin caché: si Supabase falla un rato, no queremos que Cloudflare guarde el error
-        return Response(status_code=404 if r.status_code in (400, 404) else 502, headers={"Cache-Control": "no-store"})
-    ct = r.headers.get("content-type", "application/octet-stream")
-    return Response(r.content, media_type=ct, headers={"Cache-Control": CACHE})
+    except Exception:  # noqa: BLE001  (red caída, timeout...)
+        r = None
+    if r is None or r.status_code != 200 or len(r.content) > MAX_BYTES:
+        if f.exists():  # Supabase caído: mejor la copia vieja que nada
+            return FileResponse(f, media_type=ct, headers={"Cache-Control": "public, max-age=300"})
+        code = 404 if (r is not None and r.status_code in (400, 404)) else 502
+        return Response(status_code=code, headers={"Cache-Control": "no-store"})
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(f.suffix + f".{os.getpid()}.tmp")
+        tmp.write_bytes(r.content); tmp.replace(f)
+        _prune()
+    except OSError:
+        pass
+    return Response(r.content, media_type=r.headers.get("content-type", ct), headers={"Cache-Control": CACHE})
 
 
 class RewriteMiddleware:
