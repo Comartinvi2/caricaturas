@@ -24,12 +24,20 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, funnel, imaging, reminder, scenes, storage
+from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, reminder, scenes, storage
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title=config.BRAND_NAME)
+app.add_middleware(imgproxy.RewriteMiddleware)  # imágenes vía caricaturea.com/img/ (caché de Cloudflare)
+
+
+@app.get("/img/{path:path}", include_in_schema=False)
+async def img(path: str):
+    return await imgproxy.serve(path)
+
+
 STATIC = Path(__file__).parent / "static"
 EXAMPLES = config.DATA_DIR / "examples"
 @app.get("/favicon.ico", include_in_schema=False)
@@ -461,6 +469,17 @@ async def admin_make_template(token: str = ""):
 async def admin_dedupe(token: str = ""):
     _admin(token)
     return await catalog.dedupe_titles()
+
+
+@app.get("/admin/aligerar")
+async def admin_slim(token: str = "", run: bool = False, delete_old: bool = True):
+    """Supabase pesa menos: borra Social Coworker, limpia pruebas sin pagar y recomprime .jpg de producto.
+    /admin/aligerar?token=...&run=1 lo lanza en segundo plano; sin run=1 muestra el progreso."""
+    _admin(token)
+    if run:
+        await asyncio.to_thread(storage.sb_cleanup, True)
+        asyncio.create_task(catalog.slim_storage(delete_old=delete_old))
+    return {k: (v[-20:] if k == "errors" else v) for k, v in catalog._slim.items()}
 
 
 @app.get("/admin/models")

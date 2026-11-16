@@ -359,3 +359,71 @@ async def face_image(name: str):
         r = await c.get(f"{SUPABASE_URL}/storage/v1/object/public/caricaturas/_faces/{name}")
     r.raise_for_status()
     return _I.open(_io.BytesIO(r.content)).convert("RGB")
+
+
+# --- aligerar Supabase (plan gratuito: 1 GB) ---------------------------------
+
+_slim = {"running": False, "checked": 0, "recompressed": 0, "saved_mb": 0.0, "deleted": {}, "errors": []}
+OLD_BUCKETS = ("post-videos", "post-images", "music")  # Social Coworker: ya no se usa
+
+
+def recompress(data: bytes, max_w: int = 1400, quality: int = 78) -> bytes:
+    from PIL import Image as _I
+    import io as _io
+    im = _I.open(_io.BytesIO(data)).convert("RGB")
+    if im.width > max_w:
+        im = im.resize((max_w, round(im.height * max_w / im.width)), _I.LANCZOS)
+    buf = _io.BytesIO(); im.save(buf, format="JPEG", quality=quality, optimize=True, progressive=True)
+    return buf.getvalue()
+
+
+async def _list_all(c: httpx.AsyncClient, bucket: str, prefix: str = "") -> list[str]:
+    """Rutas de todos los archivos de un bucket (recorre carpetas)."""
+    out, h = [], _headers()
+    r = await c.post(f"{SUPABASE_URL}/storage/v1/object/list/{bucket}", headers=h, json={"prefix": prefix, "limit": 1000})
+    for o in (r.json() if r.status_code == 200 else []):
+        path = f"{prefix}/{o['name']}" if prefix else o["name"]
+        if o.get("id") is None:  # carpeta
+            out += await _list_all(c, bucket, path)
+        else:
+            out.append(path)
+    return out
+
+
+async def slim_storage(delete_old: bool = True, min_kb: int = 150):
+    """Una vez: borra los buckets de Social Coworker y recomprime las .jpg de producto grandes."""
+    if not ENABLED or _slim["running"]:
+        return
+    _slim.update(running=True, checked=0, recompressed=0, saved_mb=0.0, deleted={}, errors=[])
+    try:
+        async with httpx.AsyncClient(timeout=120) as c:
+            if delete_old:
+                for b in OLD_BUCKETS:
+                    paths = await _list_all(c, b)
+                    for i in range(0, len(paths), 100):
+                        await c.request("DELETE", f"{SUPABASE_URL}/storage/v1/object/{b}", headers=_headers(), json={"prefixes": paths[i:i + 100]})
+                    _slim["deleted"][b] = len(paths)
+            prods = await _get("car_products", {"select": "slug", "limit": "5000"})
+            pre = f"{SUPABASE_URL}/storage/v1/object/public/caricaturas/"
+            for p in prods:
+                r = await c.post(f"{SUPABASE_URL}/storage/v1/object/list/caricaturas", headers=_headers(), json={"prefix": p["slug"] + "/", "limit": 100})
+                for o in (r.json() if r.status_code == 200 else []):
+                    size = (o.get("metadata") or {}).get("size") or 0
+                    if not o["name"].endswith(".jpg") or o["name"] == "photo.jpg" or size < min_kb * 1024:
+                        continue
+                    path = f"{p['slug']}/{o['name']}"
+                    _slim["checked"] += 1
+                    try:
+                        g = await c.get(pre + path); g.raise_for_status()
+                        new = await asyncio.to_thread(recompress, g.content)
+                        if len(new) < len(g.content) * 0.8:
+                            await _put(path, new, "image/jpeg")
+                            _slim["recompressed"] += 1
+                            _slim["saved_mb"] = round(_slim["saved_mb"] + (len(g.content) - len(new)) / 1048576, 1)
+                    except Exception as e:  # noqa: BLE001
+                        _slim["errors"].append({"path": path, "error": str(e)[:200]})
+        log.info("aligerar: %s", {k: v for k, v in _slim.items() if k != "errors"})
+    except Exception as e:  # noqa: BLE001
+        _slim["errors"].append({"error": str(e)[:300]})
+    finally:
+        _slim["running"] = False

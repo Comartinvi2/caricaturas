@@ -73,17 +73,28 @@ def backup(job_id: str) -> None:
     if not SB_ON:
         return
     d = job_dir(job_id)
-    for name, ct in (("preview.jpg", "image/jpeg"), ("result.png", "image/png")):
-        f = d / name
+    # Sin pagar aún: la caricatura va en WebP (~5 veces menos que el PNG). Al pagar, persist() sube el PNG.
+    files = [("preview.jpg", "image/jpeg", lambda f: f.read_bytes())]
+    files.append(("result.webp", "image/webp", _to_webp))
+    for name, ct, read in files:
+        f = d / ("result.png" if name == "result.webp" else name)
         if f.exists():
             try:
                 h = _h(ct); h["x-upsert"] = "true"
-                httpx.post(f"{SB_URL}/storage/v1/object/{BUCKET}/{job_id}/{name}", headers=h, content=f.read_bytes(), timeout=120)
+                httpx.post(f"{SB_URL}/storage/v1/object/{BUCKET}/{job_id}/{name}", headers=h, content=read(f), timeout=120)
             except Exception:
                 pass
     meta = read_meta(job_id)
     if meta:
         _sb_save(job_id, meta)
+
+
+def _to_webp(f: Path) -> bytes:
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.open(f).convert("RGB").save(buf, format="WEBP", quality=90, method=4)
+    return buf.getvalue()
 
 
 UNPAID_KEEP_DAYS = 2
@@ -108,7 +119,7 @@ def sb_cleanup(force: bool = False) -> int:
         for i in range(0, len(old), 100):
             chunk = old[i:i + 100]
             httpx.request("DELETE", f"{SB_URL}/storage/v1/object/{BUCKET}", headers=_h(), timeout=60,
-                          json={"prefixes": [f"{j}/{n}" for j in chunk for n in ("preview.jpg", "result.png")]})
+                          json={"prefixes": [f"{j}/{n}" for j in chunk for n in ("preview.jpg", "result.png", "result.webp")]})
             ids = ",".join(f'"{j}"' for j in chunk)
             httpx.request("DELETE", f"{SB_URL}/rest/v1/car_orders", headers=_h(), params={"job_id": f"in.({ids})"}, timeout=30)
             removed += len(chunk)
@@ -127,6 +138,13 @@ def ensure_file(job_id: str, name: str) -> Path:
         if r.status_code == 200:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_bytes(r.content)
+        elif name == "result.png":  # pedido sin pagar: solo hay copia en WebP
+            r = httpx.get(f"{SB_URL}/storage/v1/object/{BUCKET}/{job_id}/result.webp", headers=_h(), timeout=120)
+            if r.status_code == 200:
+                import io
+                from PIL import Image
+                p.parent.mkdir(parents=True, exist_ok=True)
+                Image.open(io.BytesIO(r.content)).save(p, format="PNG")
     except Exception:
         pass
     return p
