@@ -28,7 +28,7 @@ def test_mercado_por_pais():
 
 def test_mexico_solo_para_imprimir(page):
     t = page("MX")
-    assert 'const MARKET = "digital"' in t and "descarga inmediata · pagas en tu moneda" in t
+    assert 'const MARKET = "digital"' in t and "te llega al momento · pagas en tu moneda" in t
     assert "Envío gratuito por mensajería" not in t and "{{" not in t
 
 
@@ -47,3 +47,10 @@ def test_impreso_desde_mexico_se_rechaza():
     impreso = next(k for k, v in fulfilment.PRODUCTS.items() if v["ships"])
     with pytest.raises(ValueError, match="no enviamos impresas"):
         fulfilment.create_checkout("job", impreso, country="MX")
+
+
+def test_para_imprimir_como_lamina():
+    from app import fulfilment
+    t = open("app/static/producto.html").read()
+    assert "Quiero mi lámina" in t and "Es tuya" in t and "Descargar mi caricatura" not in t and "(descarga)" not in t
+    assert "descarga" not in fulfilment.PRODUCTS["digital"]["name"].lower()

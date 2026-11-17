@@ -74,7 +74,7 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
       <div class="types" id="types"></div>
       <h3>Selecciona el tamaño</h3>
       <div class="sizes" id="sizes"></div>
-      <p class="hint" id="digi-note" hidden>Sin marca de agua · Descarga inmediata tras el pago · Listo para imprimir hasta 20x30 cm · Tuyo para siempre</p>
+      <p class="hint" id="digi-note" hidden>Sin marca de agua · Te llega al momento por email · Para imprimir en tamaño folio (A4) · Es tuya: imprímela las veces que quieras</p>
       <p class="chosen-price">Precio: <b id="price-now"></b> · {{SHIP_NOTE}}</p>
 
       <h3 class="upload-title">ENVIAR FOTOS</h3>
@@ -106,9 +106,9 @@ window.cambiarCookies = function () { try { localStorage.removeItem('cookies_ok'
           </div>
         </div>
         <p class="hint">La marca de agua desaparece al pagar. ¿No te convence ninguna? Genera otras dos (te quedan <b id="left">1</b>).</p>
-        <div class="digi-box"><b>Tu caricatura en alta calidad para imprimir · <span id="digi-price"></span></b>
-          <small>Tu caricatura sin marca de agua · Descarga inmediata tras el pago · Lista para imprimir hasta 20x30 cm · Tuya para siempre</small>
-          <button class="btn btn-primary wide" type="button" id="pay-digital">Descargar mi caricatura · <span id="digi-price-btn"></span></button>
+        <div class="digi-box"><b>Lámina de tu caricatura para imprimir · <span id="digi-price"></span></b>
+          <small>Sin marca de agua · Te llega al momento por email · Perfecta para imprimir en tamaño folio (A4), en casa o en cualquier copistería · Es tuya: imprímela las veces que quieras, para enmarcarla, regalarla a la familia o hacer tarjetas e invitaciones</small>
+          <button class="btn btn-primary wide" type="button" id="pay-digital">Quiero mi lámina · <span id="digi-price-btn"></span></button>
           <small id="digi-printed">¿La prefieres ya impresa? Elige lienzo o póster aquí abajo.</small></div>
         <label class="notes" id="fmt-row">Formato y tamaño<select id="fmt"></select></label>
         <button class="btn btn-primary wide" id="pay">Pedir · <span id="pay-price"></span></button>
@@ -159,7 +159,7 @@ function renderVariants(){
     <span><input type="radio" name="variant" ${v.id === jobId ? 'checked' : ''}> Elijo la opción ${i+1}</span></label>`).join('');
   document.querySelectorAll('#var-grid .var').forEach(el => el.onclick = () => { needChanges = false; $('#changes-box').hidden = true; $('#need-changes').checked = false; selectVariant(el.dataset.id); });
 }
-const TYPE_LABEL = {digital: 'Para imprimir (descarga)', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
+const TYPE_LABEL = {digital: 'Lámina para imprimir', canvas: 'Cuadro sobre lienzo', poster: 'Póster'};
 
 (function(){ const d = new Date(); let add = 6; while(add>0){ d.setDate(d.getDate()+1); if(d.getDay()!==0 && d.getDay()!==6) add--; }
   $('#delivery-date').textContent = d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'}); })();
