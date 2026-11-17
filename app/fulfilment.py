@@ -1,9 +1,10 @@
 """Pago (Stripe Checkout) y producción (Gelato)."""
+import threading
 import time
 
 import httpx
 
-from . import config, mail, market, storage, funnel
+from . import config, mail, market, storage, funnel, upscale
 
 P = config.PRICES_CENTS
 PRODUCTS = {
@@ -138,6 +139,8 @@ async def fulfil(job_id: str) -> dict:
         return storage.update_meta(job_id, status="awaiting_changes")
     product = meta.get("product")
     if product == "digital":
+        if upscale.enabled():   # se amplía ya a 300 ppp para que la descarga no espere
+            threading.Thread(target=upscale.digital_file, args=(job_id,), daemon=True).start()
         return storage.update_meta(job_id, status="delivered")
     if not config.PRINT_ENABLED:
         return storage.update_meta(job_id, status="paid_pending_print", gelato_order="demo")

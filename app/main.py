@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, market, reminder, scenes, storage
+from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, market, reminder, scenes, storage, upscale
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
@@ -879,7 +879,7 @@ def _paid_result(job_id: str) -> Path:
 @app.get("/api/download/{job_id}.png")
 async def api_download(job_id: str):
     p = _paid_result(job_id)
-    data = imaging.prepare_digital_file(Image.open(p))
+    data = await asyncio.to_thread(upscale.digital_file, job_id) or imaging.prepare_digital_file(Image.open(p))
     return Response(data, media_type="image/png", headers={"Content-Disposition": f'attachment; filename="caricatura-{job_id[:6]}.png"'})
 
 

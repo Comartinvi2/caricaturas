@@ -67,6 +67,19 @@ def persist(job_id: str) -> None:
     update_meta(job_id, persist=True)
 
 
+def keep(job_id: str, name: str, data: bytes, ct: str) -> None:
+    """Guarda un archivo del pedido en disco y en Supabase (p. ej. la lámina ampliada a 300 ppp)."""
+    p = job_dir(job_id) / name
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(data)
+    if SB_ON:
+        try:
+            h = _h(ct); h["x-upsert"] = "true"
+            httpx.post(f"{SB_URL}/storage/v1/object/{BUCKET}/{job_id}/{name}", headers=h, content=data, timeout=120)
+        except Exception:
+            pass
+
+
 def backup(job_id: str) -> None:
     """Copia de seguridad inmediata tras generar: si Render cambia de instancia (despliegue,
     reinicio), la vista previa y el pago siguen funcionando. No marca el pedido como persistente."""
