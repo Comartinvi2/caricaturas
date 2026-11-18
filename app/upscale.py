@@ -35,6 +35,8 @@ def replicate_x4(png: bytes) -> bytes:
         f.raise_for_status()
         p = c.post(f"{API}/predictions", headers={**h, "Prefer": "wait=60"},
                    json={"version": VERSION, "input": {"image": f.json()["urls"]["get"], "scale": 4, "face_enhance": False}}).json()
+        if "urls" not in p:   # p. ej. 402 sin saldo en Replicate
+            raise RuntimeError(f"Replicate: {p.get('detail') or p}")
         for _ in range(60):
             if p.get("status") in ("succeeded", "failed", "canceled"):
                 break
