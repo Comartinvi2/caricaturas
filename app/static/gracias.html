@@ -72,7 +72,7 @@ document.getElementById('job').textContent = job;
     msg.textContent = 'Te enviaremos nuevas versiones por email, normalmente en 24-48 horas. Haremos los ajustes que necesites hasta que te guste: no se entrega ni se imprime nada sin tu aprobación. Si al final no quedas satisfecho, te devolvemos el importe total.';
   } else if (s.product === 'digital') {
     title.textContent = '¡Listo! Aquí tienes tu caricatura';
-    msg.textContent = 'Descárgala en alta resolución (PNG, 300 dpi), sin marca de agua.';
+    msg.textContent = 'Descárgala en alta resolución (PNG, 300 ppp en A4), sin marca de agua.';
     act.innerHTML = '<a class="btn btn-primary" href="/api/download/' + job + '.png">Descargar mi caricatura</a>';
   } else {
     title.textContent = '¡Gracias! Tu caricatura está en producción';
