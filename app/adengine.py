@@ -16,8 +16,12 @@ async def report_sale(s: dict):
     if not url or not key:
         return
     md = s.get("metadata") or {}
-    body = {"orderId": s.get("client_reference_id") or md.get("job_id"), "amount": (s.get("amount_total") or 0) / 100,
-            "currency": (s.get("currency") or "eur").upper(), "email": (s.get("customer_details") or {}).get("email"),
+    cur = (s.get("currency") or "eur").upper()
+    amount = (s.get("amount_total") or 0) / 100
+    if cur != "EUR" and md.get("eur_cents"):   # pagos en dólares/pesos: AdEngine suma en euros
+        cur, amount = "EUR", int(md["eur_cents"]) / 100
+    body = {"orderId": s.get("client_reference_id") or md.get("job_id"), "amount": amount,
+            "currency": cur, "email": (s.get("customer_details") or {}).get("email"),
             "gclid": md.get("gclid"), "fbc": md.get("fbc"), "fbp": md.get("fbp"), "url": f"{config.BASE_URL}/gracias"}
     try:
         async with httpx.AsyncClient(timeout=20) as c:

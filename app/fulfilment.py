@@ -53,23 +53,27 @@ def create_checkout(job_id: str, product: str, clicks: dict | None = None, pct: 
         funnel.hit("venta")
         return f"{config.BASE_URL}/gracias?job={job_id}&demo=1"
     stripe = stripe_client()
+    # Moneda de la visita: se cobra exactamente lo que enseña la ficha (market.to_local, mismo descuento y redondeo que el JS)
+    cur = market.currency(country)
+    unit = round(market.to_local(p["cents"], cur) * (100 - pct) / 100)
     params = dict(
         mode="payment",
         line_items=[{
             "price_data": {
-                "currency": config.CURRENCY,
-                "unit_amount": round(p["cents"] * (100 - pct) / 100),
+                "currency": cur,
+                "unit_amount": unit,
                 "product_data": {"name": p["name"] + (f" · -{pct} % recordatorio" if pct else ""), "images": [f"{config.BASE_URL}/api/preview/{job_id}.jpg"]},
             },
             "quantity": 1,
         }],
         success_url=f"{config.BASE_URL}/gracias?job={job_id}&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{config.BASE_URL}/?job={job_id}",
-        metadata={"job_id": job_id, "product": product, **({"descuento": f"recordatorio {pct}%"} if pct else {}), **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
+        metadata={"job_id": job_id, "product": product, "eur_cents": str(round(p["cents"] * (100 - pct) / 100)), **({"descuento": f"recordatorio {pct}%"} if pct else {}), **(clicks or {})},  # clicks: gclid/fbc/fbp del anuncio, para AdEngine
         client_reference_id=job_id,
         locale="es",
-        adaptive_pricing={"enabled": True},  # Stripe enseña el precio en la moneda del cliente (dólares, pesos…); cobramos en euros
     )
+    if cur == "eur":
+        params["adaptive_pricing"] = {"enabled": True}  # resto del mundo: Stripe enseña el precio en su moneda; cobramos en euros
     if p["ships"]:
         params["shipping_address_collection"] = {"allowed_countries": ["ES", "PT", "FR", "IT", "DE", "MX", "US", "PR"]}
         params["phone_number_collection"] = {"enabled": True}

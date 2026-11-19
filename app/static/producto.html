@@ -23,7 +23,7 @@ window.__IDS = {ga4: "{{GA4_ID}}", gads: "{{GADS_ID}}", gads_label: "{{GADS_LABE
   if (I.pinterest) { !function(e){if(!window.pintrk){window.pintrk=function(){window.pintrk.queue.push(Array.prototype.slice.call(arguments))};var n=window.pintrk;n.queue=[],n.version="3.0";var t=document.createElement("script");t.async=!0,t.src=e;var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r)}}("https://s.pinimg.com/ct/core.js"); pintrk('load', I.pinterest); pintrk('page'); }
   }
   window.__cargarCookies = cargar; if (ok === 'si') cargar();
-  window.track = function(ev, data){ data = data||{}; try{ if(window.gtag){ gtag('event', ev, data); if(ev==='purchase' && I.gads && I.gads_label) gtag('event','conversion',{send_to: I.gads+'/'+I.gads_label, value: data.value, currency: 'EUR', transaction_id: data.transaction_id}); } if(window.fbq){ const map={view_item:'ViewContent', generate:'Lead', begin_checkout:'InitiateCheckout', purchase:'Purchase'}; fbq('track', map[ev]||ev, {value:data.value, currency:'EUR', content_name:data.item}, data.transaction_id ? {eventID: String(data.transaction_id)} : undefined); if(ev==='generate') fbq('track','AddToCart',{currency:'EUR', content_name:data.item}); } if(window.pintrk && ev==='purchase') pintrk('track','checkout',{value:data.value,currency:'EUR'}); }catch(e){} };
+  window.track = function(ev, data){ data = data||{}; try{ if(window.gtag){ gtag('event', ev, data); if(ev==='purchase' && I.gads && I.gads_label) gtag('event','conversion',{send_to: I.gads+'/'+I.gads_label, value: data.value, currency: (window.CUR || 'eur').toUpperCase(), transaction_id: data.transaction_id}); } if(window.fbq){ const map={view_item:'ViewContent', generate:'Lead', begin_checkout:'InitiateCheckout', purchase:'Purchase'}; fbq('track', map[ev]||ev, {value:data.value, currency: (window.CUR || 'eur').toUpperCase(), content_name:data.item}, data.transaction_id ? {eventID: String(data.transaction_id)} : undefined); if(ev==='generate') fbq('track','AddToCart',{currency:'EUR', content_name:data.item}); } if(window.pintrk && ev==='purchase') pintrk('track','checkout',{value:data.value,currency:'EUR'}); }catch(e){} };
 })();
 
 // Banner de cookies: nada de lo anterior se carga hasta que se acepta (LSSI y RGPD). La elección se guarda en este navegador.
@@ -138,7 +138,13 @@ if (MARKET !== 'es') document.querySelector('.delivery-banner').hidden = true;
 if (MARKET === 'digital') document.getElementById('digi-printed').hidden = true;
 function setMain(u){ const m = document.getElementById('main-img'); if (m) { m.removeAttribute('srcset'); m.src = u; } }
 const $ = s => document.querySelector(s);
-const eur = c => (c/100).toFixed(2).replace('.', ',') + ' €';
+// Importes en la moneda de la visita (D.currency, ya convertidos en el servidor): mismo texto que market.fmt
+const eur = c => { const cur = (D && D.currency) || 'eur', x = cur === 'clp' ? c : c / 100, d = {minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: 2};
+  if (cur === 'usd') return '$' + x.toLocaleString('en-US', d) + '\u00a0USD';
+  if (cur === 'mxn') return '$' + Math.round(x).toLocaleString('en-US') + '\u00a0MXN';
+  if (cur === 'clp') return '$' + Math.round(x).toLocaleString('es-CL') + '\u00a0CLP';
+  return (c/100).toFixed(2).replace('.', ',') + ' €'; };
+const major = c => ((D && D.currency) === 'clp' ? c : c / 100);
 let D = null, type = 'canvas', product = null, jobId = null, tries = 0;
 const TKEY = 'tries:' + location.pathname; try { tries = +(localStorage.getItem(TKEY) || 0); } catch(e) {}
 // todas las pruebas se guardan como opciones durante 48 h (en el servidor se borran a los 2 días si no se pagan)
@@ -165,7 +171,7 @@ const TYPE_LABEL = {digital: 'Lámina para imprimir', canvas: 'Cuadro sobre lien
   $('#delivery-date').textContent = d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'}); })();
 
 async function load(){
-  D = await (await fetch('/api/scenes?only=' + encodeURIComponent(SCENE))).json();
+  D = await (await fetch('/api/scenes?only=' + encodeURIComponent(SCENE))).json(); window.CUR = D.currency;
   if (MARKET === 'digital') { D.products = D.products.filter(p => p.type === 'digital'); type = 'digital'; }  // México/Chile: solo para imprimir
   $('#nav').innerHTML = D.categories.map(c => `<a href="/regalos/${c.slug}">${c.name}</a>`).join('');
   const minOf = t => Math.min(...D.products.filter(p=>p.type===t).map(p=>p.cents));
@@ -226,7 +232,7 @@ $('#preview').addEventListener('click', () => zoom($('#preview').src));
 { const m = $('#main-img'); if (m) m.addEventListener('click', () => zoom(m.currentSrc || m.src)); }
 $('#pay-digital').addEventListener('click', () => { $('#fmt').value = 'digital'; $('#fmt').dispatchEvent(new Event('change')); $('#pay').click(); });
 $('#pay').addEventListener('click', async () => {
-  $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: product.cents/100});
+  $('#pay').disabled = true; if(window.track) track('begin_checkout',{item:SCENE_NAME, value: major(product.cents)});
   try {
     const r = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ job_id: jobId, product: product.id, d: DTOK, changes: needChanges, wishes: needChanges ? $('#wishes').value : '' }) });
     const data = await r.json(); if(!r.ok) throw new Error(data.detail || 'Error al iniciar el pago');
