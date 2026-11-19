@@ -54,7 +54,7 @@ async def send(to: str | None, subject: str, paragraphs: list[str], button: tupl
     if items:
         rows = "".join(
             f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee">{html.escape(i["name"])} × {i["qty"]}</td>'
-            f'<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right">{_eur(i["cents"] * i["qty"])}</td></tr>'
+            f'<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right">{i.get("text") or _eur(i["cents"] * i["qty"])}</td></tr>'
             for i in items)
         rows = f'<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">{rows}</table>'
     btn = f'<p style="margin:24px 0"><a href="{button[1]}" style="background:#1d1b19;color:#fff;padding:12px 22px;text-decoration:none;display:inline-block">{html.escape(button[0])}</a></p>' if button else ""
@@ -83,7 +83,7 @@ def _name(o: dict) -> str:
     return html.escape(n) if n else ""
 
 
-async def order_confirmed(job_id: str, o: dict, product_name: str, cents: int, digital: bool):
+async def order_confirmed(job_id: str, o: dict, product_name: str, cents: int, digital: bool, price_text: str | None = None):
     hola = f"¡Hola, {_name(o)}!" if _name(o) else "¡Hola!"
     base = config.BASE_URL
     if digital:
@@ -91,12 +91,12 @@ async def order_confirmed(job_id: str, o: dict, product_name: str, cents: int, d
                           [hola, "Gracias por tu compra. Aquí tienes tu caricatura en alta resolución, sin marca de agua.",
                            "Guárdala en tu ordenador o móvil: el enlace funciona durante 14 días."],
                           button=("Descargar mi caricatura", f"{base}/api/download/{job_id}.png"),
-                          items=[{"name": product_name, "qty": 1, "cents": cents}])
+                          items=[{"name": product_name, "qty": 1, "cents": cents, "text": price_text}])
     return await send(o.get("email"), "Tu caricatura está en marcha",
                       [hola, "Gracias por tu pedido. Ya estamos imprimiendo tu caricatura: se produce en 1-2 días laborables y te llegará en 2-5 días más.",
                        "Te escribiremos cuando salga de camino, con el enlace de seguimiento. Mientras tanto, también puedes descargar el archivo digital."],
                       button=("Descargar el archivo", f"{base}/api/download/{job_id}.png"),
-                      items=[{"name": product_name, "qty": 1, "cents": cents}])
+                      items=[{"name": product_name, "qty": 1, "cents": cents, "text": price_text}])
 
 
 async def changes_received(o: dict):

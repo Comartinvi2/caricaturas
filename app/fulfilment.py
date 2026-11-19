@@ -120,6 +120,7 @@ def mark_paid(job_id: str, session) -> None:
         paid_at=time.time(),
         payment="stripe",
         status="paid",
+        paid_amount=session.get("amount_total"), paid_currency=session.get("currency"),   # lo cobrado, en la moneda del cliente
         email=details.get("email"),
         shipping={
             "name": ship.get("name") or details.get("name"),
@@ -204,7 +205,9 @@ async def notify_paid(job_id: str):
         await notify_once(job_id, "changes_admin", mail.admin_alert, "Pedido con cambios",
                           f"{p.get('name', '')} · {meta.get('email') or ''}\nCambios: {meta.get('wishes') or '(sin detalle)'}\nPedido: {job_id}\nGestionar en /admin/cambios")
         return
-    await notify_once(job_id, "confirmed", mail.order_confirmed, job_id, meta, p.get("name", "Caricatura"), p.get("cents", 0), not p.get("ships", True))
+    cur = meta.get("paid_currency") or "eur"
+    price = market.fmt(meta["paid_amount"], cur) if cur != "eur" and meta.get("paid_amount") else None   # en dólares/pesos, lo que pagó
+    await notify_once(job_id, "confirmed", mail.order_confirmed, job_id, meta, p.get("name", "Caricatura"), p.get("cents", 0), not p.get("ships", True), price)
 
 
 STATUS = {"shipped": "shipped", "delivered": "delivered", "canceled": "canceled", "cancelled": "canceled", "failed": "print_error",

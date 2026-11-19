@@ -124,7 +124,12 @@ def _nonempty_cols(prods: list[dict], cols: list[dict]) -> list[dict]:
     return [c for c in cols if n(c)]
 
 
-def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[str, str]:
+def _money(cents: int, cur: str = "eur") -> str:
+    """Precio en euros (céntimos) → texto en la moneda de la visita, con la misma cuenta que cobra Stripe (market.to_local)."""
+    return _eur(cents) if cur == "eur" else market.fmt(market.to_local(cents, cur), cur)
+
+
+def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "", cur: str = "eur") -> tuple[str, str]:
     """Mismo HTML que pinta el JS (nav + rejilla), para que buscadores e IAs vean los diseños sin ejecutar JavaScript."""
     import html as _h
     e = lambda x: _h.escape(x or "", quote=True)
@@ -141,7 +146,7 @@ def _ssr_catalog(prods: list[dict], cols: list[dict], cat: str = "") -> tuple[st
         cards = "".join(
             f'<a class="card" href="/p/{p["slug"]}"><div class="card-img"><span class="badge">-{config.DISCOUNT_PCT}%</span>'
             + (f'<img src="{e(_thumb(p["image_url"]))}" alt="{e(p["title"])}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'{e(p["image_url"])}\'">' if p.get("image_url") else f'<span class="card-title">{e(p["title"])}</span>')
-            + f'</div><h3>{e(p["title"])}</h3><p>{e(p.get("short_desc"))}</p><p class="card-price"><s>{_eur(before)}</s> <b>desde {_eur(base)}</b></p></a>'
+            + f'</div><h3>{e(p["title"])}</h3><p>{e(p.get("short_desc"))}</p><p class="card-price"><s>{_money(before, cur)}</s> <b>desde {_money(base, cur)}</b></p></a>'
             for p in its[:MAX])
         more = f'<p class="more"><a class="btn btn-ghost" href="/coleccion/{GROUP_COL.get(g, "familia")}">Ver los {len(its)} diseños →</a></p>' if len(its) > MAX else ""
         out.append(f'<h3 class="group-title">{e(gname)}: <small>{len(its)} diseños</small></h3><div class="grid">{cards}</div>{more}')
@@ -157,7 +162,7 @@ def _faq_ld(html: str) -> str:
                 "mainEntity": [{"@type": "Question", "name": strip(q), "acceptedAnswer": {"@type": "Answer", "text": strip(a)}} for q, a in pairs]})
 
 
-def _page(name: str, **extra: str) -> HTMLResponse:
+def _page(name: str, cur: str = "eur", **extra: str) -> HTMLResponse:
     html = (STATIC / name).read_text(encoding="utf-8")
     base = config.PRICE_CANVAS_20x30_CENTS  # «desde»: el lienzo más pequeño (el archivo es un extra)
     before = round(base / (1 - config.DISCOUNT_PCT / 100)) if config.DISCOUNT_PCT else base
@@ -166,14 +171,14 @@ def _page(name: str, **extra: str) -> HTMLResponse:
         "PHONE": config.PHONE,
         "EMAIL": config.CONTACT_EMAIL,
         "DISCOUNT": str(config.DISCOUNT_PCT),
-        "PRICE_FROM": _eur(base),
-        "PRICE_BEFORE": _eur(before),
-        "PRICE_CANVAS_20x30": _eur(config.PRICE_CANVAS_20x30_CENTS),
-        "PRICE_CANVAS_30x40": _eur(config.PRICE_CANVAS_30x40_CENTS),
-        "PRICE_CANVAS_40x50": _eur(config.PRICE_CANVAS_40x50_CENTS),
-        "PRICE_POSTER_A4": _eur(config.PRICE_POSTER_A4_CENTS),
-        "PRICE_POSTER_A3": _eur(config.PRICE_POSTER_A3_CENTS),
-        "PRICE_DIGITAL": _eur(config.PRICE_DIGITAL_CENTS),
+        "PRICE_FROM": _money(base, cur),
+        "PRICE_BEFORE": _money(before, cur),
+        "PRICE_CANVAS_20x30": _money(config.PRICE_CANVAS_20x30_CENTS, cur),
+        "PRICE_CANVAS_30x40": _money(config.PRICE_CANVAS_30x40_CENTS, cur),
+        "PRICE_CANVAS_40x50": _money(config.PRICE_CANVAS_40x50_CENTS, cur),
+        "PRICE_POSTER_A4": _money(config.PRICE_POSTER_A4_CENTS, cur),
+        "PRICE_POSTER_A3": _money(config.PRICE_POSTER_A3_CENTS, cur),
+        "PRICE_DIGITAL": _money(config.PRICE_DIGITAL_CENTS, cur),
         "DEMO": "true" if config.DEMO_MODE else "false",
         "WHATSAPP": config.WHATSAPP,
         "CATEGORY": "",
@@ -209,23 +214,25 @@ async def canonical_host(request: Request, call_next):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home():
+async def home(request: Request):
+    country = request.headers.get("cf-ipcountry")
     prods, cols = await catalog.get_catalog()
-    nav, grid = _ssr_catalog(prods, cols)
+    nav, grid = _ssr_catalog(prods, cols, cur=market.currency(country))
     img = next((p["image_url"] for p in prods if p.get("bestseller") and p.get("image_url")), "")
     head = _seo_head("/", f"{config.BRAND_NAME} · Caricatura personalizada desde una foto, en lienzo", HOME_DESC, img)
-    return _page("index.html", SSR_NAV=nav, SSR_GRID=grid, HEAD_EXTRA=head)
+    return _page("index.html", cur=market.currency(country), **market.texts(country), SSR_NAV=nav, SSR_GRID=grid, HEAD_EXTRA=head)
 
 
 @app.get("/regalos/{category}", response_class=HTMLResponse)
 @app.get("/coleccion/{category}", response_class=HTMLResponse)
-async def category_page(category: str):
+async def category_page(request: Request, category: str):
+    country = request.headers.get("cf-ipcountry")
     prods, cols = await catalog.get_catalog()
     cat = next((c for c in cols if c["slug"] == category), None)
     if not cat:
         raise HTTPException(404)
     import html as _h
-    nav, grid = _ssr_catalog(prods, cols, category)
+    nav, grid = _ssr_catalog(prods, cols, category, cur=market.currency(country))
     items = [p for p in prods if category == "todas" or category in (p.get("collections") or []) or (category == "bestsellers" and p.get("bestseller"))]
     h1 = cat["h1"] or cat["title"]
     title = f"{h1} · {config.BRAND_NAME}"
@@ -234,7 +241,7 @@ async def category_page(category: str):
     il = _ld({"@context": "https://schema.org", "@type": "ItemList", "name": h1, "numberOfItems": len(items),
               "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{config.BASE_URL}/p/{p['slug']}", "name": p["title"]} for i, p in enumerate(items)]})
     head = _seo_head(path, title, desc, next((p["image_url"] for p in items if p.get("image_url")), "")) + il + _crumbs((cat["title"], path))
-    return _page("index.html", CATEGORY=category, HEAD_EXTRA=head, PAGE_TITLE=title, H1=h1, INTRO=cat.get("intro") or "",
+    return _page("index.html", cur=market.currency(country), **market.texts(country), CATEGORY=category, HEAD_EXTRA=head, PAGE_TITLE=title, H1=h1, INTRO=cat.get("intro") or "",
                  META_DESC=_h.escape(desc, quote=True), SSR_NAV=nav, SSR_GRID=grid)
 
 
@@ -269,7 +276,7 @@ async def product_page(request: Request, slug: str):
     _img = s.get("image_url") or f"/api/example/{s['slug']}.jpg"
     _img_t = _img[:-4] + "-t.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
     _img_m = _img[:-4] + "-m.webp" if ("/object/public/caricaturas/" in _img and _img.endswith(".jpg")) else _img
-    return _page("producto.html", **market.texts(request.headers.get("cf-ipcountry")), MAIN_IMG=_img, MAIN_IMG_T=_img_t, MAIN_IMG_M=_img_m, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
+    return _page("producto.html", cur=market.currency(request.headers.get("cf-ipcountry")), **market.texts(request.headers.get("cf-ipcountry")), MAIN_IMG=_img, MAIN_IMG_T=_img_t, MAIN_IMG_M=_img_m, HEAD_EXTRA=head, SCENE_DESC_ATTR=_h.escape(s.get("short_desc") or "", quote=True), SCENE_ID=s["slug"], SCENE_NAME=s["title"], SCENE_DESC=s.get("short_desc") or "", SCENE_HTML=s.get("description_html") or "", PAGE_TITLE=f"{s['title']} · {config.BRAND_NAME}")
 
 
 @app.get("/api/scenes")
