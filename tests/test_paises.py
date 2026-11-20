@@ -70,3 +70,11 @@ def test_con_la_lamina_para_imprimir_no_se_habla_de_entrega_ni_de_tamano():
     assert 'id="delivery-digital" hidden' in t and "te llega por email al momento de pagar" in t
     assert "$('#delivery-ship').hidden = dig; $('#delivery-digital').hidden = !dig;" in t
     assert 'id="size-title"' in t and "$('#size-title').hidden = $('#sizes').hidden = list.length < 2;" in t
+
+
+def test_cabecera_con_el_lienzo_de_referencia_y_la_lamina_para_imprimir():
+    t = open("app/static/producto.html").read()
+    cab = t[t.index('<p class="from">'):t.index('<h3>Tipo y tamaño</h3>')]
+    assert cab.index('id="from-anchor" hidden') < cab.index('id="canvas-from"') < cab.index('id="from-label"') < cab.index('id="price-from"')   # lo caro se lee primero
+    assert "Lienzo desde" in cab
+    assert "if (MARKET !== 'digital') { $('#from-anchor').hidden = false; $('#canvas-from').textContent = eur(minOf('canvas')); $('#from-label').textContent = 'Para imprimir:'; }" in t

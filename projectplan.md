@@ -288,3 +288,6 @@ TODOs:
 
 Hecho el 20-nov (OK de María; texto elegido por ella: «Calidad profesional de impresión»). El sello va bajo las opciones, visible
 al abrir porque la ficha abre con la lámina para imprimir. Tests 24/24.
+
+Añadido el 20-nov (María): el precio de la impresa/lienzo se lee primero como referencia y debajo el de la lámina para imprimir
+(las 2 ventas de Bebés fueron cuando se veía antes el precio caro).

@@ -161,6 +161,7 @@ footer .newsletter input{flex:1;background:#333;border:1px solid #555;color:#fff
 .size{border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
 .size.on{border-color:#1a7a4a;background:#eef7f1}
 .chosen-price{margin:12px 0 0;font-weight:700}
+.from-anchor{display:block;font-size:1rem;font-weight:400;color:var(--muted);margin-bottom:2px}.from-anchor b{color:var(--ink);font-weight:700}.from-anchor[hidden]{display:none}
 .seals[hidden],.sizes[hidden]{display:none}
 .seals{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:0;margin:14px 0 0}.seals li{border:1px solid #1a7a4a;background:#eef7f1;border-radius:999px;padding:6px 12px;font-size:.85rem}
 .upload-title{text-align:center;letter-spacing:.08em;color:#6b2d2d;margin-top:22px!important}
