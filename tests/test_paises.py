@@ -63,3 +63,10 @@ def test_ficha_abre_con_la_lamina_para_imprimir_y_destaca_su_calidad():
     sellos = t[t.index('id="digi-note"'):t.index('class="chosen-price"')]
     assert "Calidad profesional de impresión" in sellos and "300 ppp en A4" in sellos and "Por email al momento" in sellos
     assert "type === 'digital' ? 'te llega por email al momento'" in t               # la lámina para imprimir no lleva «envío gratis»
+
+
+def test_con_la_lamina_para_imprimir_no_se_habla_de_entrega_ni_de_tamano():
+    t = open("app/static/producto.html").read()
+    assert 'id="delivery-digital" hidden' in t and "te llega por email al momento de pagar" in t
+    assert "$('#delivery-ship').hidden = dig; $('#delivery-digital').hidden = !dig;" in t
+    assert 'id="size-title"' in t and "$('#size-title').hidden = $('#sizes').hidden = list.length < 2;" in t
