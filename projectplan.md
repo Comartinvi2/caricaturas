@@ -273,3 +273,18 @@ Archivo real: 1152×1536 px → los textos prometen «hasta 20x30 cm», no más.
 - Verificado en local (demo, móvil 375 px): vista ampliada con Cerrar/Pedir; el botón del
   archivo manda `product: digital` a /api/checkout a 9,90 €. Tests 6/6.
 - Medir: inicios de pago y ventas digitales en /admin/embudo frente a antes del 13-nov.
+
+## Dar más peso a la lámina para imprimir en la ficha (20-nov-2026, propuesta, pendiente de OK)
+
+Por qué: en 7 días 90 personas generaron su caricatura y solo 3 empezaron a pagar. Antes de generar, la ficha anuncia «Desde
+35,90 €» con el lienzo elegido; la lámina para imprimir (9,90 €, 300 ppp en A4) es la tercera opción y su ventaja solo se lee
+tras generar.
+
+TODOs:
+- [x] 1. Encima de «Tipo y tamaño», un sello visible: «Lámina para imprimir en alta resolución (300 ppp, A4) · por email al
+      momento · desde 9,90 €» que al tocarlo la elige. → verificar: test de la plantilla + captura móvil y escritorio.
+- [x] 2. Precio de cabecera «Desde 9,90 €» (el más bajo real). → verificar: test.
+- [x] 3. (Decisión de María) Que la ficha abra con la lámina para imprimir elegida, como en Bebés. → verificar: test + captura.
+
+Hecho el 20-nov (OK de María; texto elegido por ella: «Calidad profesional de impresión»). El sello va bajo las opciones, visible
+al abrir porque la ficha abre con la lámina para imprimir. Tests 24/24.

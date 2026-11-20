@@ -40,7 +40,7 @@ def test_eeuu(page):
 def test_espana_y_sin_cabecera_igual_que_antes(page):
     for c in ("ES", None):
         t = page(c)
-        assert 'const MARKET = "es"' in t and "Envío gratuito por mensajería" in t and "· envío gratis</p>" in t
+        assert 'const MARKET = "es"' in t and "Envío gratuito por mensajería" in t and ">envío gratis</span></p>" in t
 
 
 def test_impreso_desde_mexico_se_rechaza():
@@ -54,3 +54,12 @@ def test_para_imprimir_como_lamina():
     t = open("app/static/producto.html").read()
     assert "Quiero mi lámina" in t and "Es tuya" in t and "Descargar mi caricatura" not in t and "(descarga)" not in t
     assert "descarga" not in fulfilment.PRODUCTS["digital"]["name"].lower()
+
+
+def test_ficha_abre_con_la_lamina_para_imprimir_y_destaca_su_calidad():
+    t = open("app/static/producto.html").read()
+    assert "type = 'digital'" in t and "['digital','canvas','poster']" in t          # primera opción y la elegida al abrir
+    assert "minOf('digital')" in t and "minOf(MARKET === 'digital' ? 'digital' : 'canvas')" not in t   # «Desde» = el precio más bajo real
+    sellos = t[t.index('id="digi-note"'):t.index('class="chosen-price"')]
+    assert "Calidad profesional de impresión" in sellos and "300 ppp en A4" in sellos and "Por email al momento" in sellos
+    assert "type === 'digital' ? 'te llega por email al momento'" in t               # la lámina para imprimir no lleva «envío gratis»
