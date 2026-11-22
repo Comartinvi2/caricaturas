@@ -24,12 +24,15 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from . import adengine, catalog, config, fulfilment, funnel, imaging, imgproxy, market, reminder, scenes, storage, upscale
+from . import adengine, blog, catalog, config, fulfilment, funnel, imaging, imgproxy, market, reminder, scenes, storage, upscale
 
 log = logging.getLogger("caricaturas")
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title=config.BRAND_NAME)
+
+app.add_api_route("/blog", blog.proxy, methods=["GET"], include_in_schema=False)
+app.add_api_route("/blog/{path:path}", blog.proxy, methods=["GET"], include_in_schema=False)
 app.add_middleware(imgproxy.RewriteMiddleware)  # imágenes vía caricaturea.com/img/ (caché de Cloudflare)
 
 
