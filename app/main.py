@@ -332,7 +332,7 @@ async def robots():
     ai = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User",
           "Google-Extended", "Applebot-Extended", "Bingbot", "meta-externalagent", "CCBot"]
     out = "User-agent: *\nAllow: /\n" + block + "\n# Asistentes de IA: bienvenidos (resumen en /llms.txt)\n" + "".join(f"User-agent: {b}\n" for b in ai) + "Allow: /\n" + block
-    return Response(out + f"\nSitemap: {config.BASE_URL}/sitemap.xml\n", media_type="text/plain")
+    return Response(out + f"\nSitemap: {config.BASE_URL}/sitemap.xml\nSitemap: {config.BASE_URL}/blog/sitemap.xml\n", media_type="text/plain")
 
 
 @app.get("/llms.txt")
