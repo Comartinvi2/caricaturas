@@ -291,3 +291,33 @@ al abrir porque la ficha abre con la lámina para imprimir. Tests 24/24.
 
 Añadido el 20-nov (María): el precio de la impresa/lienzo se lee primero como referencia y debajo el de la lámina para imprimir
 (las 2 ventas de Bebés fueron cuando se veía antes el precio caro).
+
+## Código BLACK26 (-10 %) en las tres webs (23-nov-2026, OK de María)
+
+Webs: cuadrosconalma.com, caricaturea.com y regaloparabebes.com. Las tres cobran con la misma cuenta de Stripe, así que un
+solo código de promoción vale para todas. Los cupones de porcentaje funcionan en cualquier moneda (EUR, USD, MXN, CLP).
+
+Cómo está hoy:
+- Bebés: el pago ya deja escribir un código (`allow_promotion_codes=True`). No hay que tocar nada.
+- Cuadros: también lo deja, salvo si ya entra con el cupón de bienvenida (no se pueden juntar los dos en Stripe).
+- Caricaturea: NO deja escribir códigos. Es el único cambio de código.
+- AdEngine coge `amount_total` de Stripe, así que la venta se registra ya con el descuento aplicado.
+
+TODOs:
+- [ ] 1. María crea en el panel de Stripe (cuenta live de Comartinvi; yo no tengo acceso a esa cuenta): cupón «Black Friday 10 %»
+      (10 %, una vez) + código de promoción `BLACK26` que caduca el lunes 30-nov-2026 a las 23:59 (Cyber Monday; decisión de María). → verificar: aparece activo en Stripe.
+- [x] 2. Caricaturea: `allow_promotion_codes=True` al crear el pago, salvo si ya trae el 10 % del correo de recordatorio
+      (para no sumar 20 %). → verificar: test nuevo en tests/ (con y sin recordatorio); push y comprobar en vivo que el
+      pago enseña «Añadir código promocional».
+- [x] 3. Barra superior de las tres webs: «Black Friday: -10 % extra con el código BLACK26» hasta el 30-nov a las 23:59 (decisión de María), y después
+      vuelve sola a la barra de ahora. → verificar: test de plantilla en cada web + captura móvil.
+- [ ] 4. Prueba de punta a punta: en cada web, ir al pago, escribir BLACK26 y ver que baja un 10 % (sin pagar).
+
+Margen (docs/gelato-costes.md): lienzo 20×30 de Caricaturea ≈ 10,30 € → ≈ 7,30 € con el código; lámina 50×70 de Bebés
+≈ 25 € → ≈ 19,80 €; lámina 30×40 de Bebés ≈ 9,50 € → ≈ 6,90 €. Se suma al -20 % que ya enseñan Caricaturea y Bebés.
+
+María (23-nov): BLACK26 no se acumula con otros descuentos de código o correo (sí va sobre el -20 % que ya enseña la web).
+Hecho: Caricaturea solo deja escribir código si el pago no trae el 10 % del recordatorio; en Bebés igual con el 10 % de
+recuperación (`allow_promotion_codes=not pct`); en Cuadros ya era así con el 15 % de bienvenida. Stripe solo admite un código
+por pago, así que tampoco se junta con BIENVENIDA15 ni con una tarjeta regalo. La barra (cinta en Cuadros) cambia sola por
+`BLACK_FRIDAY_END` (1-dic 00:00 Madrid) en el config de cada web. Tests: Caricaturea 30/30, Cuadros 23/23, Bebés 55/55.

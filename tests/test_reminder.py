@@ -56,5 +56,8 @@ def test_el_pago_aplica_el_descuento(monkeypatch):
     cents = fulfilment.PRODUCTS[pid]["cents"]
     assert seen["line_items"][0]["price_data"]["unit_amount"] == round(cents * 0.9)
     assert seen["metadata"]["descuento"] == "recordatorio 10%"
+    assert "allow_promotion_codes" not in seen   # BLACK26 no se suma al recordatorio
+    seen.clear()
     fulfilment.create_checkout("job1", pid)
     assert seen["line_items"][0]["price_data"]["unit_amount"] == cents and "descuento" not in seen["metadata"]
+    assert seen["allow_promotion_codes"] is True   # sin recordatorio, se puede escribir BLACK26

@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app import catalog, fulfilment, main, market
+from app import catalog, config, fulfilment, main, market
 
 SCENE = {"slug": "caricatura-motero-40-cumpleanos", "title": "Motero 40", "short_desc": "Para moteros", "images": [], "collections": []}
 
@@ -32,7 +32,8 @@ def test_mexico_solo_para_imprimir(page):
     assert "Envío gratuito por mensajería" not in t and "{{" not in t
 
 
-def test_eeuu(page):
+def test_eeuu(page, monkeypatch):
+    monkeypatch.setattr(config, "BLACK_FRIDAY_END", 0)   # la barra de Black Friday tapa «Envío gratis a EE. UU.»
     t = page("US")
     assert 'const MARKET = "us"' in t and "Envío gratis a Estados Unidos y Puerto Rico" in t and "Envío gratis a EE. UU." in t
 

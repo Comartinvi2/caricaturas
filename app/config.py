@@ -13,6 +13,7 @@ BRAND_NAME = env("BRAND_NAME", "Caricaturea")
 BASE_URL = env("BASE_URL", "http://localhost:8000").rstrip("/")
 CURRENCY = env("CURRENCY", "eur")
 DISCOUNT_PCT = int(env("DISCOUNT_PCT", "20"))  # descuento de lanzamiento mostrado (precio tachado)
+BLACK_FRIDAY_END = 1796079600  # 1-dic-2026 00:00 (Madrid): hasta entonces la barra anuncia el código BLACK26 (-10 %, en Stripe)
 PHONE = env("PHONE", "")  # teléfono de contacto en la barra superior (vacío = no se muestra)
 CONTACT_EMAIL = env("CONTACT_EMAIL", "hola@caricaturea.es")
 # Precios finales (ya con el descuento aplicado), en céntimos. Referencia: la tienda

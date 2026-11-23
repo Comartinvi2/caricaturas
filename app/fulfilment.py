@@ -72,6 +72,8 @@ def create_checkout(job_id: str, product: str, clicks: dict | None = None, pct: 
         client_reference_id=job_id,
         locale="es",
     )
+    if not pct:   # códigos de Stripe (BLACK26…), pero nunca encima del descuento del recordatorio: no se acumulan
+        params["allow_promotion_codes"] = True
     if cur == "eur":
         params["adaptive_pricing"] = {"enabled": True}  # resto del mundo: Stripe enseña el precio en su moneda; cobramos en euros
     if p["ships"]:

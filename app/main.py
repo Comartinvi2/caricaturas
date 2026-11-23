@@ -195,6 +195,8 @@ def _page(name: str, cur: str = "eur", **extra: str) -> HTMLResponse:
         **market.texts(""),  # España; la ficha de producto lo cambia según el país de la visita
     }
     repl.update(extra)
+    if time.time() < config.BLACK_FRIDAY_END:
+        html = re.sub(r'<div class="promo">.*?</div>', '<div class="promo">🖤 Black Friday: 10 % de descuento con el código BLACK26 · hasta el lunes 30 <span class="phone">{{PHONE}}</span></div>', html, count=1)
     for k, v in repl.items():
         html = html.replace("{{" + k + "}}", v)
     if name == "index.html":
