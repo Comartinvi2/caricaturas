@@ -28,7 +28,7 @@ def test_mercado_por_pais():
 
 def test_mexico_solo_para_imprimir(page):
     t = page("MX")
-    assert 'const MARKET = "digital"' in t and "te llega al momento · pagas en tu moneda" in t
+    assert 'const MARKET = "digital"' in t and "te llega al momento por email" in t and "en tu moneda" not in t
     assert "Envío gratuito por mensajería" not in t and "{{" not in t
 
 
